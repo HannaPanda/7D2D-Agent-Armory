@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<configs>
+	<append xpath="/items">
+
+		<!-- Throwable delivery charge. Detonates on impact (harmless puff); the
+		     Harmony hook on GameManager.ExplosionServer sees this item as the
+		     explosion source and spawns the cluster pod at the blast position. -->
+		<item name="thrownSeekerCluster">
+			<property name="Extends" value="thrownGrenadeContact" param1="PreviousTechItem"/>
+			<property name="CustomIcon" value="thrownGrenadeContact"/>
+			<property name="CustomIconTint" value="80,180,255"/>
+			<property name="TintColor" value="80,180,255"/>
+			<property name="DisplayType" value="ammoGrenadeContact"/>
+			<property name="Stacknumber" value="20"/>
+			<property name="EconomicValue" value="250"/>
+
+			<!-- Delivery blast only: no meaningful damage, small marker puff. -->
+			<property class="Explosion">
+				<property name="BlockDamage" value="0"/>
+				<property name="EntityDamage" value="1"/>
+				<property name="RadiusBlocks" value="0"/>
+				<property name="RadiusEntities" value="0.5"/>
+				<property name="BlastPower" value="0"/>
+				<property name="ParticleIndex" value="12"/>
+			</property>
+			<!-- FuseTime must be > 0 (0 => explodeAfterTicks=0 => never detonates, inert dud).
+			     The fuse starts the instant it's thrown and counts down during flight, so a
+			     SHORT fuse would detonate in mid-air on a long throw (pod spawns early/short).
+			     We want it to blow on GROUND IMPACT: ExplodeOnHit (inherited) forces detonation
+			     the moment it collides, regardless of fuse remaining. So we set a LONG fuse
+			     (6s) purely as a safety backup — long enough to survive any throw arc — and
+			     let the impact do the real triggering. Throw it as far as you like. -->
+			<property name="FuseTime" value="6"/>
+		</item>
+
+	</append>
+</configs>

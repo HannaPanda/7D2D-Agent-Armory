@@ -1,0 +1,3 @@
+Key,File,Type,UsedInMainMenu,NoTranslate,english,german
+thrownSeekerCluster,items,item,,,Cluster Seeker,Cluster-Seeker
+thrownSeekerClusterDesc,items,item,,,"Throw it, let it arm, then watch it split into autonomous seeker drones that hunt down nearby enemies and detonate on contact.","Werfen, scharf werden lassen – dann teilt er sich in autonome Seeker-Drohnen, die nahe Gegner jagen und bei Kontakt detonieren."

@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<configs>
+
+	<!-- ============================================================
+	     CLUSTER POD  – the object spawned where the grenade lands.
+	     Inert while arming, then bursts into child seekers (C# MinEventAction).
+	     Model/physics reused from a small ground animal (placeholder art).
+	     ============================================================ -->
+	<append xpath="/entity_classes">
+		<entity_class name="entitySeekerCluster" extends="animalRabbit">
+			<property name="Tags" value="entity,seeker,seekerPod"/>
+			<property name="Faction" value="animals"/>
+			<property name="Mass" value="30"/>
+			<property name="HealthMax" value="20"/>
+			<property name="ExperienceGain" value="0"/>
+
+			<!-- ===== Custom art: sci-fi drone AssetBundle (replaces rabbit mesh) =====
+			     ModelType=Standard (NOT Drone!): the rabbit is EntityAnimalRabbit, a GROUND
+			     entity whose movement needs m_characterController, which is created from
+			     PhysicsBody="rabbit" (inherited) ONLY on the Standard model path. EModelDrone
+			     is built for Class=EntityDrone (hover physics, no PhysicsBody/CharacterController)
+			     and left m_characterController null -> EntityMoveHelper.UpdateMoveHelper NRE-flood.
+			     AvatarControllerDummy = no animation logic (our mesh is boneless; we spin it in
+			     C#). Prefab points into our bundle Resources/seekerdrone.unity3d, prefab "SeekerDrone".
+			     Pod is scaled a bit bigger than the children. -->
+			<property name="ModelType" value="Standard"/>
+			<property name="AvatarController" value="AvatarControllerDummy"/>
+			<property name="Prefab" value="#@modfolder:Resources/seekerdrone.unity3d?SeekerDrone.prefab"/>
+			<property name="PrefabCombined" value="true"/>
+			<!-- SizeScale MUSS >= 1 sein. IL `Entity.SetCCScale(scale)`:
+			       center = GetCenter() * scale;   height = GetHeight() * scale;
+			       radius = GetRadius() * Utils.FastMax(scale, 1f);
+			     Center und Hoehe skalieren mit, der RADIUS wird durch FastMax nach unten auf
+			     Faktor 1 gepinnt. Jedes scale < 1 macht den Radius also relativ zur Hoehe um
+			     1/scale zu gross; danach klemmt KinematicCharacterMotor.ValidateData die Hoehe
+			     auf radius*2 hoch und die Kapsel entartet zur Kugel (die Hemisphaerenmittelpunkte
+			     fallen zusammen -> ProbeGround/Sweeps liefern nichts). Genau das war die Ursache
+			     fuer Durchfallen, Kreisen, Wandklettern und Bouncen.
+			     Basis ist jetzt das KIND mit 1.0; der Pod ist das Groessenverhaeltnis
+			     0.20 / 0.11 = 1.818 - ueber 1, dort ist FastMax ein No-Op und Radius, Hoehe und
+			     Center skalieren konsistent (r=0.309 h=0.727 cY=0.364). -->
+			<property name="SizeScale" value="1.818"/>
+			<!-- The rabbit inherits skeletal flags that break a boneless mesh; disable them. -->
+			<property name="HasDeathAnim" value="false"/>
+			<property name="RootMotion" value="false"/>
+			<property name="HasRagdoll" value="false"/>
+			<!-- LookAtAngle>0 makes EModelBase try head-look aiming, which NREs on a boneless
+			     mesh (no gaze controller / neck bones). 0 disables it entirely. -->
+			<property name="LookAtAngle" value="0"/>
+			<!-- Pod MOVES: er folgt dem Spieler. Bewusst LANGSAMER als die Kinder.
+			     2.7 war Zombie-Hoechstgeschwindigkeit (schnellster vanilla Feral: "2.1, 2.3")
+			     und wirkte als Begleiter hektisch: der Pod schoss mit Vollgas zum Spieler.
+			     Die Kinder BRAUCHEN 2.7, weil sie fliehende Ziele einholen und rammen muessen;
+			     der Pod muss nur mithalten. 2.2 liegt knapp unter dem schnellsten Zombie.
+			     "min, max" ist Pflicht: GetMoveSpeedAggro liest zwei getrennte Felder
+			     (min bei Tag, max nachts/Blutmond), ein Einzelwert laesst das andere ~0. -->
+			<!-- TEMPO - BITTE VOR DEM AENDERN LESEN.
+			     Diese Werte sind nur deshalb wirksam, weil `Patch_SeekerStepLimiter` den Weg pro
+			     Tick auf `MoveSpeedAggro / 20 * Tolerance(1.5)` deckelt. Ohne ihn laeuft die
+			     Geschwindigkeit voellig frei (gemessen: 22 m/s bei eingestellten 2.2), weil bei
+			     `RootMotion=false` weder MoveSpeed noch MoveSpeedAggro in die Fortbewegung eingehen.
+			     OBERGRENZE ist das Verhaeltnis Schritt/Kapselradius. Wird es zu gross, springt die
+			     Drohne ueber duenne Geometrie, bevor die Kollision aufgeloest werden kann.
+			     Referenz: 1.19x lief nachweislich ohne Tunneln (Log `..._14-36-05`).
+			     Pod r=0.436 (Prefab 0.24 * SizeScale 1.818):
+			       6.5 m/s = 0.488/Tick = 1.12x  <- hier, unter der Referenz
+			     Der Pod muss schneller sein als die Kinder, weil er dem laufenden Spieler folgt.
+			     Sein Kapselradius ist an das Kind gekoppelt (ein gemeinsames Prefab), und der
+			     Durchmesser von 0.87 m ist die eigentliche Grenze: darueber passt er nicht mehr
+			     durch eine 1 m breite Tuer. -->
+			<property name="MoveSpeed" value="6.5"/>
+			<property name="MoveSpeedAggro" value="6.5, 6.5"/>
+			<property name="RoamTimeMax" value="0"/>
+
+			<!-- Custom pod brain: follow the player (class=EntityPlayer) and only arm when a
+			     zombie enters detect_range; arming buff bursts into children + removes the pod.
+			     chaseTimeMax 600 = follow the player persistently. -->
+			<property name="AITask-1" value="SeekerPod,AgentArmory"
+			          data="class=EntityPlayer,600;detect_range=12;arm_buff=buffSeekerClusterArm"/>
+			<!-- KEIN Wander fuer den Pod: er soll dem Spieler folgen, nicht umherstreifen.
+			     EAIWander (MutexBits=1) ist ausserdem inkompatibel mit unserem SeekerPod
+			     (via EAIApproachAndAttackTarget, MutexBits=3): solange Wander laeuft,
+			     blockiert EAITaskList.isBestTask den Follow-Task komplett.
+			     AITask-4 muss ebenfalls gesetzt werden, weil animalRabbit dort Wander definiert
+			     und es sonst geerbt aktiv bliebe. Loeschen per value="" wirft, daher Look. -->
+			<property name="AITask-2" value="Look"/>
+			<property name="AITask-3" value="Look"/>
+			<property name="AITask-4" value="Look"/>
+
+			<!-- Keine Leiche (siehe Kommentar beim Child): Pod zaehlt als Tier und koennte
+			     sonst als Kadaver von Zombies gefressen werden. -->
+			<property name="TimeStayAfterDeath" value="0"/>
+
+			<!-- Immune to explosions too, so a child's blast can't corpse the pod. -->
+			<effect_group>
+				<passive_effect name="ExplosionIncomingDamage" operation="perc_add" value="-1.0"/>
+			</effect_group>
+		</entity_class>
+
+		<!-- ============================================================
+		     CHILD SEEKER – autonomous hunter. Acquires nearest enemy by
+		     CLASS (works regardless of faction), chases, and detonates on
+		     contact via the custom EAISeekerDetonate task.
+		     ============================================================ -->
+		<entity_class name="entitySeekerChild" extends="animalRabbit">
+			<property name="Tags" value="entity,seeker,seekerChild"/>
+			<property name="Faction" value="animals"/>
+			<property name="Mass" value="18"/>
+			<property name="HealthMax" value="10"/>
+			<property name="ExperienceGain" value="0"/>
+
+			<!-- ===== Custom art: same drone bundle as the pod, scaled smaller. =====
+			     ModelType=Standard for the same reason as the pod (ground CharacterController
+			     from PhysicsBody; EModelDrone would null it and NRE-flood). -->
+			<property name="ModelType" value="Standard"/>
+			<property name="AvatarController" value="AvatarControllerDummy"/>
+			<property name="Prefab" value="#@modfolder:Resources/seekerdrone.unity3d?SeekerDrone.prefab"/>
+			<property name="PrefabCombined" value="true"/>
+			<!-- Basisgroesse: 1.0 (Begruendung zu FastMax siehe beim Pod oben). Die Prefab-
+			     Kapsel ist damit direkt der Weltwert: r=0.17 h=0.40 cY=0.20.
+			     Die sichtbare Groesse bleibt unveraendert, weil der Mesh-Node im Prefab den
+			     wegfallenden 0.11-Faktor uebernimmt (0.01 -> 0.0011; netto weiterhin 0.0011
+			     beim Kind und 0.0011*1.818 = 0.0020 beim Pod). -->
+			<property name="SizeScale" value="1.0"/>
+			<!-- Same skeletal-flag disables as the pod (boneless mesh). -->
+			<property name="HasDeathAnim" value="false"/>
+			<property name="RootMotion" value="false"/>
+			<property name="HasRagdoll" value="false"/>
+			<property name="LookAtAngle" value="0"/>
+			<!-- MoveSpeedAggro MUST be "min, max" (min used in daylight, max at night/BM;
+			     GetMoveSpeedAggro reads two separate fields). A single value leaves the
+			     other field near 0 -> snail pace. 2.3 matches the FASTEST vanilla zombie
+			     (feral runners cap at "2.1, 2.3"), so seekers keep pace with anything. -->
+			<!-- TEMPO - Begruendung und Grenzwert siehe Pod oben.
+			     Die Kinder muessen den schnellsten Zombie EINHOLEN, sonst haengen sie hinterher,
+			     laufen in ihre lifetime und verschwinden ungenutzt (beobachtet im Test vom
+			     2026-07-25). Deshalb bewusst ueber vanilla-Zombietempo.
+			     Kind r=0.240 (Prefab-Kapsel, durch h/2 = 0.275 nach oben begrenzt):
+			       2.7 m/s = 0.203/Tick = 1.19x  <- die erprobte Referenz (damals r=0.170)
+			       4.0 m/s = 0.300/Tick = 1.25x  <- hier, minimal darueber
+			     Der Sprung von 2.7 auf 4.0 kommt NICHT aus einem hoeheren Risiko, sondern aus dem
+			     groesseren Collider (Prefab-Kapsel 0.17/0.40 -> 0.24/0.55). Wer hier weiter
+			     hochdreht, ohne den Collider mitzuziehen, holt sich das Wandtunneln zurueck.
+			     Weitere Vergroesserung ist durch den POD gedeckelt: er skaliert mit 1.818 mit und
+			     passt ab etwa r=0.25 nicht mehr durch eine 1 m breite Tuer. Ab da braeuchten Pod
+			     und Kind getrennte Prefabs. -->
+			<property name="MoveSpeed" value="4.0"/>
+			<property name="MoveSpeedAggro" value="4.0, 4.0"/>
+			<property name="RoamTimeMax" value="0"/>
+
+			<!-- Custom task: acquires nearest enemy itself (C#), chases, detonates on contact.
+			     class=<Name>,<chaseTimeMax> pairs: chaseTimeMax MUST be > 0 (0 = give up
+			     instantly if the entity ever has a home). acquire_range = how far the task's
+			     own scan looks for EntityEnemy (bypasses the player-centric animal senses). -->
+			<!-- lifetime 10 -> 18 (2026-07-25): Mit 10s verschwanden Kinder mitten in der
+			     Verfolgung, wenn das Ziel ein schneller Zombie war - im Test zweimal beobachtet.
+			     Die Kinder sind jetzt zwar schneller (4.0), aber die Aufholjagd ueber die
+			     acquire_range von 15 m braucht bei einem fliehenden Ziel schlicht laenger als 10s.
+			     18s bleibt deutlich unter der Notbremse `HardLifetimeSeconds` (30s) in
+			     Patch_SeekerPhysics - wer hier ueber 30 geht, muss die dort mit anheben, sonst
+			     raeumt die Notbremse die Kinder vorher weg. -->
+			<property name="AITask-1" value="SeekerDetonate,AgentArmory"
+			          data="class=EntityEnemy,60,EntityZombie,60;detonate_dist=2.8;acquire_range=15;leash_range=24;lifetime=18;arm_buff=buffSeekerChildArm;detonate_buff=buffSeekerDetonate"/>
+			<!-- Wander REMOVED: with no valid target (all sleeping/unreachable/dead) the inherited
+			     Wander task made seekers roam randomly, which read as "running around randomly".
+			     Now a targetless seeker just holds position until its lifetime removes it. -->
+			<property name="AITask-2" value="Look"/>
+			<!-- AITask-3 und -4 MUESSEN hier ueberschrieben werden. animalRabbit definiert VIER
+			     AI-Tasks (RunawayWhenHurt / RunawayFromEntity / Look / Wander); wir ersetzen oben
+			     nur -1 und -2, also blieben -3 (Look, harmlos) und -4 (WANDER) geerbt aktiv.
+			     Wander war die Ursache fuer zwei Symptome:
+			       (a) Seeker rollten ziellos umher, statt still zu halten;
+			       (b) Seeker ueberlebten ihre lifetime. EAIWander hat MutexBits=1, unser
+			           SeekerDetonate (via EAIApproachAndAttackTarget) MutexBits=3 -> die beiden
+			           sind inkompatibel. Solange Wander ausgefuehrt wird, liefert
+			           EAITaskList.isBestTask fuer unseren Task false, CanExecute() wird nie
+			           aufgerufen, und genau dort sitzt der Lifetime-Check.
+			     Loeschen per value="" wirft ("Class '' not found!"), deshalb mit dem harmlosen
+			     Look ueberschreiben (EAILook setzt keine MutexBits, ist also mit allem vertraeglich). -->
+			<property name="AITask-3" value="Look"/>
+			<property name="AITask-4" value="Look"/>
+
+			<!-- Keine Leiche: der Seeker erbt vom Tier-Template TimeStayAfterDeath=300. Wird er
+			     von einem Zombie erschlagen (er zaehlt als Tier/Beute), bleibt ein Kadaver liegen
+			     und Zombies FRESSEN Leichen: EAIApproachAndAttackTarget.Start setzt
+			     isTargetToEat = entityTarget.IsDead(). Genau das war das beobachtete
+			     "Zombie frisst Drohne". 0 = Koerper verschwindet sofort. -->
+			<property name="TimeStayAfterDeath" value="0"/>
+
+			<!-- AITarget-1 REMOVED (2026-07-23): this vanilla targeting task ran IN PARALLEL with
+			     EAISeekerDetonate's own self-acquisition and fought it. EAITarget.check() revalidates
+			     its target every tick via isWithinHomeDistance()/CanSee() and calls
+			     theEntity.SetAttackTarget(null,0) unconditionally whenever either fails (both fail
+			     constantly for a target picked by broad-phase scan outside the animal's own sense
+			     range); verified via IL dump. This nulled the attack target almost every tick,
+			     which our Update() sees as tgt==null -> moveHelper.Stop(), producing the stop/go
+			     stutter that read as "seekers sometimes ultra slow". Log evidence: 601x "found NO
+			     valid target" + the same target id repeatedly re-logged with changing distance
+			     (proof of thrash) in one play session. EAISeekerDetonate.CanExecute()->AcquireTarget()
+			     already does self-acquisition (world.GetEntitiesInBounds<EntityEnemy>, sticky+spread+
+			     leash+unreachable-blacklist) without needing this vanilla task at all; just delete it.
+			-->
+
+			<!-- Full immunity to explosion damage: -100% incoming. Stops the cluster from
+			     splash-killing itself. Each seeker instead removes ITSELF in C# a beat after
+			     its blast (MarkToUnload -> no corpse); the detonation buff no longer zeroes
+			     health, so no dead-rabbit body is left behind. -->
+			<effect_group>
+				<passive_effect name="ExplosionIncomingDamage" operation="perc_add" value="-1.0"/>
+			</effect_group>
+		</entity_class>
+	</append>
+
+</configs>

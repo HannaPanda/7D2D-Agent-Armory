@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<xml>
+	<Name value="AgentArmory" />
+	<DisplayName value="Agent Armory" />
+	<Description value="Deployable agent gadgets: throwable cluster seeker that splits into autonomous drones. More modules planned (chem launcher, throwable turret, disposable gun drone, hive). Harmony DLL + XML. Built for 7DTD 3.0.1." />
+	<Author value="Hanna" />
+	<Version value="0.1.0" />
+	<Website value="https://github.com/HannaPanda/7D2D-Agent-Armory" />
+	<SkipWithAntiCheat value="true" />
+</xml>

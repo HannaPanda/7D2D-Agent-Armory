@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<configs>
+	<append xpath="/recipes">
+
+		<!-- Workbench craft, known from the start (no "learnable" tag so no perk/schematic needed).
+		     Ingredients loosely modelled on the vanilla contact grenade. Tune to taste. -->
+		<recipe name="thrownSeekerCluster" count="1" craft_time="20" craft_area="workbench" tags="workbenchCrafting">
+			<ingredient name="resourceMechanicalParts" count="3"/>
+			<ingredient name="resourceGunPowder" count="18"/>
+			<ingredient name="resourceForgedSteel" count="3"/>
+			<ingredient name="resourceElectricParts" count="2"/>
+			<ingredient name="resourceSpring" count="2"/>
+		</recipe>
+
+	</append>
+</configs>

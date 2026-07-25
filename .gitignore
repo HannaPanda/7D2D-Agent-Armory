@@ -1,0 +1,26 @@
+# .NET build output (DLL source)
+[Bb]in/
+[Oo]bj/
+out/
+*.user
+
+# Backups / temp
+*.dll.bak
+*.bak
+*.tmp
+
+# Unity project (only the exported source PNGs + scripts live in src/texture)
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Ll]ogs/
+[Uu]serSettings/
+*.csproj.user
+
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store
+dist/
+nexus/

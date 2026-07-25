@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<configs>
+	<append xpath="/buffs">
+
+		<!-- Pod arming fuse: applied by EAISeekerPod the moment a zombie is detected.
+		     Short telegraph, then onSelfBuffFinish bursts into children + removes the pod. -->
+		<buff name="buffSeekerClusterArm" name_key="buffSeekerClusterArm" hidden="true">
+			<duration value="0.75"/>
+			<effect_group>
+				<!-- Custom C# action, resolved via ReflectionHelpers.GetTypeWithPrefix. -->
+				<!-- Custom actions are resolved via Type.GetType(prefix+name), which only
+				     searches Assembly-CSharp unless the name is assembly-qualified. -->
+				<!-- `spread` wird seit 2026-07-25 IGNORIERT (Attribut nur noch zur
+				     Abwaertskompatibilitaet geduldet). Die Kinder entstehen jetzt direkt aus dem
+				     Pod, auf einem engen Ring um dessen Position: das ist die einzige Koordinate,
+				     die nachweislich gueltig ist, weil der Pod dorthin GEFALLEN und vom Motor als
+				     Ruhelage bestaetigt worden ist. Jede gesuchte Ersatzposition musste ihre
+				     Gueltigkeit dagegen raten - siehe Kommentar in MinEventActionSpawnSeekers.
+				     Das Auffaechern uebernimmt die Round-Robin-Zielvergabe (jedes Kind bekommt
+				     einen anderen Zombie) plus das Re-Spreading in EAISeekerDetonate; dafuer
+				     braucht es keinen Spawnversatz.
+				     Kettendetonation ist dadurch kein Problem: die Kinder haben einen
+				     Zuendverzoegerungs-Buff (buffSeekerChildArm) und sind laengst auseinander,
+				     bevor das erste scharf ist. -->
+				<triggered_effect trigger="onSelfBuffFinish" action="SpawnSeekers, AgentArmory"
+					entity="entitySeekerChild" count="5"
+					arm_buff="buffSeekerChildArm" kill_self="true"/>
+			</effect_group>
+		</buff>
+
+		<!-- Child safety fuse: brief window right after spawn where it will not detonate. -->
+		<buff name="buffSeekerChildArm" name_key="buffSeekerChildArm" hidden="true">
+			<duration value="0.5"/>
+			<effect_group/>
+		</buff>
+
+		<!-- Detonation: applied by EAISeekerDetonate on contact. AoE only — the seeker is
+		     explosion-immune and is removed in C# (MarkToUnload) right after, so there is
+		     NO corpse. (Previously ModifyStats Health=0 killed it, which left a body.) -->
+		<buff name="buffSeekerDetonate" name_key="buffSeekerDetonate" hidden="true">
+			<duration value="0.1"/>
+			<effect_group>
+				<!-- action="SeekerExplode" statt des vanilla "Explode": identische Attribute und
+				     identische Wirkung, schreibt die Explosion aber dem WERFER zu statt der
+				     Drohne. Vanilla Explode uebergibt target.entityId als Verursacher an
+				     ExplosionServer; Explosion.AttackEntites vergibt XP jedoch nur ueber
+				     `if (verursacher is EntityPlayer) AddKillXP(...)`, und eine Drohne ist
+				     keiner: deshalb gab es fuer Seeker-Kills keine Erfahrungspunkte und im Log
+				     stand "killed by entitySeekerChild". Details in
+				     MinEventActionSeekerExplode.cs. Custom actions muessen assembly-qualifiziert
+				     sein (Type.GetType durchsucht sonst nur Assembly-CSharp). -->
+				<triggered_effect trigger="onSelfBuffStart" action="SeekerExplode, AgentArmory"
+					blast_power="6" block_damage="15" block_radius="1"
+					entity_damage="180" entity_radius="4" damage_type="Special"/>
+			</effect_group>
+		</buff>
+
+	</append>
+</configs>

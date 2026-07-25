@@ -1,0 +1,65 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- WARUM net48 + NoStdLib + explizite Referenzen aus dem Spielordner statt netstandard2.1:
+       7DTD laeuft auf Mono mit eigenen mscorlib/System-Assemblies. Zieht man stattdessen das
+       NETStandard-Referenzpaket, kollidieren dessen System.Runtime-Versionen mit denen aus
+       Assembly-CSharp (MSB3277-Warnungsflut). Diese Konfiguration baut warnungsfrei. -->
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <AssemblyName>AgentArmory</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <NoStdLib>true</NoStdLib>
+    <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <Deterministic>true</Deterministic>
+    <DebugType>none</DebugType>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <SdtdManaged>C:\Steam\steamapps\common\7 Days To Die\7DaysToDie_Data\Managed</SdtdManaged>
+    <SdtdHarmony>C:\Steam\steamapps\common\7 Days To Die\Mods\0_TFP_Harmony</SdtdHarmony>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="mscorlib">
+      <HintPath>$(SdtdManaged)\mscorlib.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="System">
+      <HintPath>$(SdtdManaged)\System.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="System.Core">
+      <HintPath>$(SdtdManaged)\System.Core.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="System.Xml">
+      <HintPath>$(SdtdManaged)\System.Xml.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="System.Xml.Linq">
+      <HintPath>$(SdtdManaged)\System.Xml.Linq.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(SdtdManaged)\Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(SdtdHarmony)\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(SdtdManaged)\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <!-- Fuer CollisionFlags / CapsuleCollider (Physik-Diagnose und Kapselreparatur). -->
+    <Reference Include="UnityEngine.PhysicsModule">
+      <HintPath>$(SdtdManaged)\UnityEngine.PhysicsModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>
