@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<configs>
+
+	<!-- Das Schematic haengt sich an die vorhandene T2-Schematic-Gruppe an, statt eine eigene
+	     Verteilung mitzubringen. Der Grund: `schematicsModsAndGeneralT2` wird von
+	     `schematicsModsAndGeneralCommon` und `...Rare` eingebunden, und die haengen ihrerseits
+	     an Buecherregalen, Werkzeugkisten, Air Drops und den Quest-Belohnungen. Ein Eintrag hier
+	     erbt diese komplette Verteilung samt der `ProbT2Cap`-Gewichtung, die dafuer sorgt, dass
+	     T2-Schematics erst mit steigendem Loot-Stage haeufiger werden.
+
+	     T2 (nicht T1) ist die passende Stufe: dort liegen Laserzielgeraet, Schalldaempfer und die
+	     Drohnen-Mods - dasselbe Technikniveau. -->
+	<append xpath="/lootcontainers/lootgroup[@name='schematicsModsAndGeneralT2']">
+		<item name="thrownSeekerClusterSchematic"/>
+	</append>
+
+</configs>

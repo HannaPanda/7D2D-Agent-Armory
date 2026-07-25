@@ -1,3 +1,5 @@
 Key,File,Type,UsedInMainMenu,NoTranslate,english,german
 thrownSeekerCluster,items,item,,,Cluster Seeker,Cluster-Seeker
 thrownSeekerClusterDesc,items,item,,,"Throw it, let it arm, then watch it split into autonomous seeker drones that hunt down nearby enemies and detonate on contact.","Werfen, scharf werden lassen – dann teilt er sich in autonome Seeker-Drohnen, die nahe Gegner jagen und bei Kontakt detonieren."
+thrownSeekerClusterSchematic,items,item,,,Cluster Seeker Schematic,Cluster-Seeker-Bauplan
+thrownSeekerClusterSchematicDesc,items,item,,,"Folded blueprints for the pod's seeker bay, its arming fuse and the target-handoff logic. Read it to learn how to build a Cluster Seeker.","Zusammengefaltete Baupläne für die Seeker-Bucht des Pods, seinen Zündverzögerer und die Zielübergabe. Lies ihn, um den Bau des Cluster-Seekers zu erlernen."

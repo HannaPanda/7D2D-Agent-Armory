@@ -6,7 +6,13 @@
 		     Harmony hook on GameManager.ExplosionServer sees this item as the
 		     explosion source and spawns the cluster pod at the blast position. -->
 		<item name="thrownSeekerCluster">
-			<property name="Extends" value="thrownGrenadeContact" param1="PreviousTechItem"/>
+			<!-- param1 ist die AUSSCHLUSSLISTE fuer Extends (in ItemClassesFromXml.parseItem an
+			     ',' zerlegt). `UnlockedBy` muss raus: die Kontaktgranate erbt dort
+			     "craftingExplosives", und dieser Wert steuert nichts, er BESCHRIFTET nur das
+			     Craftingmenue ("Freigeschaltet durch Sprengstoff-Skill"). Freigeschaltet wird
+			     das Rezept bei uns aber ueber das Schematic (siehe unten), also waere die
+			     geerbte Beschriftung schlicht gelogen. -->
+			<property name="Extends" value="thrownGrenadeContact" param1="PreviousTechItem,UnlockedBy"/>
 			<property name="CustomIcon" value="thrownGrenadeContact"/>
 			<property name="CustomIconTint" value="80,180,255"/>
 			<property name="TintColor" value="80,180,255"/>
@@ -31,6 +37,44 @@
 			     (6s) purely as a safety backup — long enough to survive any throw arc — and
 			     let the impact do the real triggering. Throw it as far as you like. -->
 			<property name="FuseTime" value="6"/>
+		</item>
+
+		<!-- ============================================================
+		     SCHEMATIC - schaltet das Rezept oben frei.
+		     ============================================================
+		     WIE DIE FREISCHALTUNG WIRKLICH FUNKTIONIERT (IL `Recipe.IsUnlocked`):
+		       if (!IsLearnable) return true;
+		       return EffectManager.GetValue(RecipeTagUnlocked, ..., basis: GetCVar(recipeName),
+		                                     tags: recipe.tags) > 0;
+		     Daraus folgen GENAU ZWEI voneinander unabhaengige Wege, ein Rezept freizuschalten:
+		       (a) eine CVar, die EXAKT SO HEISST WIE DAS REZEPT, auf > 0 setzen  <- Schematic
+		       (b) ein passive_effect "RecipeTagUnlocked", der einen der Rezept-Tags trifft
+		           <- der Magazin-/Progression-Weg, den vanilla fuer Sprengstoff nutzt
+		     Wir nehmen (a). Der Grund ist nicht Geschmack, sondern Vertraeglichkeit: (b) muesste
+		     per XPath in die effect_group von `craftingExplosives` in der vanilla progression.xml
+		     schreiben - ein fremder Knoten, um den sich in einer grossen Modliste mehrere Mods
+		     streiten koennen. Das Schematic ist vollstaendig in sich geschlossen.
+		     Der CVar-Name MUSS dem Rezeptnamen entsprechen, nicht dem Itemnamen (hier zufaellig
+		     identisch, weil das Rezept genauso heisst wie das Item). -->
+		<item name="thrownSeekerClusterSchematic">
+			<property name="Extends" value="schematicNoQualityMaster"/>
+			<property name="CreativeMode" value="Player"/>
+			<!-- Wie bei den vanilla Schematics: das Buch traegt das Icon DESSEN, was es
+			     freischaltet; das Buch-Overlay kommt aus schematicMaster (ItemTypeIcon). -->
+			<property name="CustomIcon" value="thrownGrenadeContact"/>
+			<property name="CustomIconTint" value="80,180,255"/>
+			<!-- MUSS gesetzt werden: `schematicMaster` vererbt DescriptionKey=
+			     "schematicGeneralGroupDesc". Ohne diese Zeile greift also NICHT die uebliche
+			     Namenskonvention <item>Desc, sondern der geerbte Sammeltext. -->
+			<property name="DescriptionKey" value="thrownSeekerClusterSchematicDesc"/>
+			<!-- Reine UI-Angabe fuers Buchtooltip - schaltet selbst nichts frei. -->
+			<property name="Unlocks" value="thrownSeekerCluster"/>
+
+			<effect_group tiered="false">
+				<triggered_effect trigger="onSelfPrimaryActionEnd" action="ModifyCVar"
+					cvar="thrownSeekerCluster" operation="set" value="1"/>
+				<triggered_effect trigger="onSelfPrimaryActionEnd" action="GiveExp" exp="50"/>
+			</effect_group>
 		</item>
 
 	</append>

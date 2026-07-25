@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<configs>
+
+	<!-- Kaufbar beim Haendler. Ein Schematic, das ausschliesslich im Loot liegt, kann einen
+	     Durchlauf lang schlicht nicht erscheinen - dann ist das Rezept unerreichbar, obwohl der
+	     Mod aktiv ist. Der Haendler ist die Absicherung dagegen.
+
+	     `schematicsModsCommon` ist die einzige Schematic-Gruppe im Haendlersortiment (neben der
+	     Fahrzeugvariante) und mischt bereits Ruestungs- und Waffenmods; ein Wurfgeraet-Schematic
+	     faellt dort nicht aus dem Rahmen. Wann es tatsaechlich im Regal liegt, steuert der
+	     TraderStageTemplate des Items, nicht dieser Eintrag. -->
+	<append xpath="/traders/trader_item_groups/trader_item_group[@name='schematicsModsCommon']">
+		<item name="thrownSeekerClusterSchematic"/>
+	</append>
+
+</configs>
