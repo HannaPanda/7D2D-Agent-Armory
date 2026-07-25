@@ -19,11 +19,15 @@
 				     Das Auffaechern uebernimmt die Round-Robin-Zielvergabe (jedes Kind bekommt
 				     einen anderen Zombie) plus das Re-Spreading in EAISeekerDetonate; dafuer
 				     braucht es keinen Spawnversatz.
+				     `count` ist nicht frei skalierbar: der Ring fasst 5 Kinder, alles darueber
+				     stapelt MinEventActionSpawnSeekers in Etagen von je 0.60 m Hoehe. Ab 15
+				     (Etage 3, 1.20 m) verlaesst der Stapel die vom Pod belegte Luftsaeule und
+				     die obersten Kinder starten wieder auf geratenen Koordinaten.
 				     Kettendetonation ist dadurch kein Problem: die Kinder haben einen
 				     Zuendverzoegerungs-Buff (buffSeekerChildArm) und sind laengst auseinander,
 				     bevor das erste scharf ist. -->
 				<triggered_effect trigger="onSelfBuffFinish" action="SpawnSeekers, AgentArmory"
-					entity="entitySeekerChild" count="5"
+					entity="entitySeekerChild" count="10"
 					arm_buff="buffSeekerChildArm" kill_self="true"/>
 			</effect_group>
 		</buff>

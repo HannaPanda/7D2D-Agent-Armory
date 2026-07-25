@@ -57,6 +57,20 @@ public class MinEventActionSpawnSeekers : MinEventActionTargetedBase
                 && (z.position - basePos).sqrMagnitude <= initSq)
                 targets.Add(z);   // exclude dormant POI sleepers
 
+        // ---- Ringgeometrie, einmal vorab statt pro Kind (siehe Kommentarblock unten) ----
+        // Weltradius der Kindkapsel: Prefab 0.24 * SizeScale 1.0. MUSS mitgezogen werden, wenn
+        // sich die Prefabkapsel aendert - ein zu kleiner Wert setzt die Kinder ineinander.
+        const float childRadius = 0.24f;
+        const float childHeight = 0.55f;
+        // Der Ring darf den POD nicht ueberragen: nur innerhalb dessen Grundflaeche ist die
+        // Position nachweislich gueltig (Pod r = 0.24 * 1.818 = 0.436). Bei einem Mindestabstand
+        // von 2.2 * childRadius zwischen Nachbarn passen dort genau 5 Kinder auf einen Ring:
+        //   5 * 2.2 * 0.24 / 2pi = 0.420 m  <= 0.436
+        // Alles darueber wandert deshalb NACH OBEN in eine zweite Etage statt nach aussen.
+        const int perRing = 5;
+        float ringR = Mathf.Max(0.35f, Mathf.Min(count, perRing) * 2.2f * childRadius / (2f * Mathf.PI));
+        int ringCount = Mathf.Min(count, perRing);
+
         int assigned = 0;
         // Zufaellige Ringdrehung, damit nicht jeder Wurf dasselbe Muster auslegt.
         float ringStartAngle = rand.RandomFloat * 2f * Mathf.PI;
@@ -85,14 +99,23 @@ public class MinEventActionSpawnSeekers : MinEventActionTargetedBase
             // Der einzige Zusatz ist ein kleiner Ring, damit die Kinder nicht deckungsgleich starten:
             // vollstaendig ueberlappende Kapseln werden vom Motor mit voller Wucht auseinander
             // gedrueckt, und genau dieses Wegschleudern haben wir die letzten Runden bekaempft.
-            // Der Ring waechst mit der Anzahl, sodass BENACHBARTE Kinder sich gerade nicht beruehren
-            // (Bogenlaenge >= 2.2 * Radius). Er bleibt dabei winzig - bei 5 Kindern 0.35 m, also
-            // noch innerhalb des Podradius von 0.309. Wo der Pod steht, ist damit auch der Ring gueltig.
-            const float childRadius = 0.17f;   // spiegelt die Prefab-Kapsel; zu gross ist harmlos, zu klein nicht
-            float ringR = Mathf.Max(0.35f, count * 2.2f * childRadius / (2f * Mathf.PI));
-            float ang = (count > 0 ? (i * 2f * Mathf.PI / count) : 0f) + ringStartAngle;
+            // Benachbarte Kinder halten dafuer 2.2 * Radius Bogenlaenge Abstand.
+            //
+            // WARUM ETAGEN STATT EINES GROESSEREN RINGS (2026-07-25, mit count 5 -> 10):
+            // Der Ring waechst linear mit der Anzahl. Bei 10 Kindern laege er bei 0.84 m und damit
+            // WEIT ausserhalb der Podgrundflaeche (r=0.436) - also wieder auf geratenen Koordinaten,
+            // genau dem Fehler, den dieser Codeblock beseitigt hat. Stattdessen bleibt der Ring bei
+            // 5 Plaetzen (0.420 m, knapp innerhalb des Pods) und jedes weitere Fuenferpaket kommt
+            // eine Etage HOEHER - in die Luftsaeule, die der Pod mit seiner eigenen Hoehe von
+            // 0.55 * 1.818 = 1.0 m ohnehin schon einnimmt und die damit ebenfalls belegt gueltig ist.
+            // Die obere Etage ist um einen halben Sektor gedreht, damit die Kinder auf Luecke stehen
+            // und beim Herabfallen nicht ineinander landen.
+            int tier = i / perRing;
+            int slot = i % perRing;
+            float ang = (slot * 2f * Mathf.PI / ringCount) + ringStartAngle
+                        + (tier % 2 == 1 ? Mathf.PI / ringCount : 0f);
             Vector3 pos = new Vector3(basePos.x + Mathf.Cos(ang) * ringR,
-                                      basePos.y,
+                                      basePos.y + tier * (childHeight + 0.05f),
                                       basePos.z + Mathf.Sin(ang) * ringR);
 
             Vector3 rot = new Vector3(0f, rand.RandomFloat * 360f, 0f);
