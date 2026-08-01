@@ -1,0 +1,260 @@
+name: Release
+
+# Push a version tag (e.g. v1.0.0) to build the MO2/Vortex-installable zip and
+# publish it as a GitHub Release.
+#
+# Note: the workflow only PACKAGES the committed mod folder. It cannot compile
+# AgentArmory.dll (needs the game's Assembly-CSharp.dll as a reference) nor build
+# Resources/seekerdrone.unity3d (needs Unity 2022.3.62f2), so both binaries must
+# stay committed in the repo. Text config is validated for well-formedness first.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+# Game versions this mod release was ACTUALLY launched and verified on - headless
+# on every build, plus a GUI pass with a human look. Only tested builds get named:
+# this mod is a Harmony DLL wrapped around custom entity classes, and the two things
+# that break silently on a new build are exactly the ones a glance will not catch -
+# a patch whose target signature moved, and an asset the bundle no longer resolves
+# (ItemClass.CloneModel falls back to leather.fbx without logging anything).
+#
+# Re-establish this list before EVERY release:
+#   tb run    --mod agentarmory --profile matrix --json
+#   tb run    --mod agentarmory --version 3.1.0 --stage gui --visual defer --json
+#   tb report --mod agentarmory --json
+#
+# "Played on" is a stricter claim than "loads on" and they are tracked separately.
+# 3.0.0 and 3.0.1 pass stage 1 but have no GUI run against THIS mod version, so they
+# are not in this list - the list is per mod version, not per mod. 3.0.1 was played
+# for days during development, but on a pre-0.9.0 build and inside a large modlist;
+# neither makes it a verification of what ships here. One `tb run --stage gui` on
+# 3.0.1 is all it takes to add it.
+env:
+  TESTED_VERSIONS: "3.1.0"
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Validate XML
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libxml2-utils
+          find AgentArmory -name '*.xml' -print0 | xargs -0 -I{} xmllint --noout "{}"
+          echo "All XML well-formed."
+
+      - name: Validate Localization.csv
+        # Three ways this file dies quietly, all of them shipped-and-noticed-later:
+        #   1. Wrong FILENAME. The game only ever opens "Localization.csv"
+        #      (Localization.LoadPatchDictionaries). A Localization.txt is read by
+        #      nobody and logs nothing - every key renders as its raw name in game.
+        #   2. A BOM. loadCsv requires the first cell to be exactly "KEY"; a BOM
+        #      makes it "﻿Key" and the whole file is rejected.
+        #   3. A row with the wrong column count, which silently shifts languages.
+        run: |
+          test -f AgentArmory/Config/Localization.csv
+          ! test -e AgentArmory/Config/Localization.txt
+          python3 - <<'PY'
+          import csv, sys
+          path = "AgentArmory/Config/Localization.csv"
+          if open(path, "rb").read(3) == b"\xef\xbb\xbf":
+              print("::error::Localization.csv starts with a BOM; the game will reject it")
+              sys.exit(1)
+          rows = list(csv.reader(open(path, encoding="utf-8")))
+          width = len(rows[0])
+          if rows[0][0] != "Key":
+              print(f"::error::first column header is {rows[0][0]!r}, expected 'Key'")
+              sys.exit(1)
+          bad = [(i, len(r)) for i, r in enumerate(rows, 1) if r and len(r) != width]
+          if bad:
+              for i, n in bad:
+                  print(f"::error::Localization.csv line {i}: {n} columns, expected {width}")
+              sys.exit(1)
+          print(f"Localization.csv OK - {len(rows)-1} entries, {width} columns.")
+          PY
+
+      - name: Sanity-check installable structure
+        run: |
+          test -f AgentArmory/ModInfo.xml
+          test -f AgentArmory/AgentArmory.dll
+          test -f AgentArmory/Resources/seekerdrone.unity3d
+          test -f AgentArmory/UIAtlases/ItemIconAtlas/seekerCluster.png
+          # meta.ini is MO2-internal and must never ship inside a release zip
+          ! find AgentArmory -name 'meta.ini' | grep -q .
+          # The Unity build script drops timestamped bundle backups next to Resources/.
+          # They are gitignored, so they cannot reach a CI checkout - but a hand-copied
+          # folder carries ~1.7 MB of dead weight each, so fail loudly if one appears.
+          ! find AgentArmory -name '*.bak*' | grep -q .
+          echo "Structure OK."
+
+      - name: Check ModInfo version matches the tag
+        # A tag that disagrees with ModInfo.xml ships a mod that reports the wrong
+        # version in game and on the Nexus file entry. Cheap to check, annoying to
+        # discover afterwards.
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          MOD_VERSION=$(sed -n 's/.*<Version value="\([^"]*\)".*/\1/p' AgentArmory/ModInfo.xml)
+          if [ "$TAG_VERSION" != "$MOD_VERSION" ]; then
+            echo "::error::tag is $TAG_VERSION but ModInfo.xml says $MOD_VERSION"
+            exit 1
+          fi
+          echo "Version $MOD_VERSION matches the tag."
+
+      - name: Package mod
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          mkdir -p dist
+          # zip from repo root so the mod folder (with ModInfo.xml) is the zip root,
+          # which is what MO2 and Vortex's 7D2D installer expect.
+          zip -r -X "dist/AgentArmory-${TAG}.zip" AgentArmory
+          echo "--- zip contents ---"
+          unzip -l "dist/AgentArmory-${TAG}.zip"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: dist/*.zip
+          generate_release_notes: true
+          body: |
+            **Beta.** Deployable agent gadgets for 7 Days to Die. This release contains
+            the **Cluster Seeker**: throw it, and ten autonomous drones do the aiming.
+
+            Played and verified on **V ${{ env.TESTED_VERSIONS }}**. V 3.0.0 and V 3.0.1
+            load cleanly (mod loads, Harmony patches apply, no errors or XML problems)
+            but were not played on this build, and other 3.x builds are untested.
+            No other mods needed; EasyAntiCheat must be **off** (Harmony DLL).
+            **Multiplayer: install on the server and on every client** - asset bundles
+            are not sent from server to client.
+
+            Installable with MO2 or Vortex (drop the zip in, or extract into `Mods/`).
+
+      # ---- Nexus Mods upload ------------------------------------------------
+      # Setup (repo Settings -> Secrets and variables -> Actions):
+      #   Secret    NEXUSMODS_API_KEY   personal API key
+      #   Variable  NEXUSMODS_FILE_ID   Files tab -> "API Info" on the mod page
+      #
+      # The v3 Upload API can only add a VERSION to a file entry that already exists -
+      # there is no endpoint that creates a mod page. So the mod page and its file
+      # entry have to be created by hand on the website once; every tag after that
+      # updates them automatically.
+      #
+      # The step is skipped while the variable is unset, so tagging works before the
+      # mod page exists. Setting/clearing the variable is the on/off switch.
+      - name: Derive Nexus version
+        id: ver
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      # The Nexus *file* description is what a user reads next to the download button,
+      # so it says what the file IS, then what changed. The mini changelog is the
+      # current version's CHANGELOG.md section, flattened to at most 6 one-line
+      # bullets. No section for this version -> blurb only.
+      - name: Build mini changelog
+        id: notes
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import os, re
+
+          version = os.environ["VERSION"]
+          lines = open("CHANGELOG.md", encoding="utf-8").read().splitlines()
+
+          # the "## <version> - <date>" section, up to the next "## "
+          body, inside = [], False
+          for line in lines:
+              if line.startswith("## "):
+                  if inside:
+                      break
+                  inside = line[3:].strip().startswith(version + " ")
+                  continue
+              if inside:
+                  body.append(line)
+
+          # top-level "- " bullets, continuation lines folded in
+          bullets, cur = [], None
+          for line in body:
+              if line.startswith("- "):
+                  if cur:
+                      bullets.append(cur)
+                  cur = line[2:]
+              elif cur is not None and line.startswith("  ") and line.strip():
+                  cur += " " + line.strip()
+              elif cur:
+                  bullets.append(cur)
+                  cur = None
+          if cur:
+              bullets.append(cur)
+
+          def plain(s):
+              s = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", s)  # md links -> text
+              s = s.replace("**", "").replace("`", "")
+              return re.sub(r"\s+", " ", s).strip()
+
+          def condense(text, limit=180):
+              """Whole sentences up to `limit`; word-truncate if that stays too short."""
+              if len(text) <= limit:
+                  return text
+              kept = ""
+              for sentence in re.split(r"(?<=\.)\s+", text):
+                  if kept and len(kept) + len(sentence) > limit:
+                      break
+                  kept = (kept + " " + sentence).strip()
+                  if len(kept) >= 120:
+                      break
+              if len(kept) >= 70:
+                  return kept
+              short = text[:limit].rsplit(" ", 1)[0].rstrip(" ,;-")
+              return short + "..." if len(short) < len(text) else text
+
+          out = ["- " + condense(plain(b)) for b in bullets[:6]]
+
+          changelog = ""
+          if out:
+              changelog = "What's new in %s:\n%s\n\n" % (version, "\n".join(out))
+          changelog += "Full changelog: %s/%s/releases/tag/%s" % (
+              os.environ["GITHUB_SERVER_URL"],
+              os.environ["GITHUB_REPOSITORY"],
+              os.environ["GITHUB_REF_NAME"],
+          )
+
+          print("changelog<<__EOF__")
+          print(changelog)
+          print("__EOF__")
+          PY
+
+      - name: Upload to Nexus Mods
+        if: ${{ vars.NEXUSMODS_FILE_ID != '' }}
+        uses: Nexus-Mods/upload-action@v1.0.0-beta.9
+        with:
+          api_key: ${{ secrets.NEXUSMODS_API_KEY }}
+          file_id: ${{ vars.NEXUSMODS_FILE_ID }}
+          filename: dist/AgentArmory-${{ github.ref_name }}.zip
+          display_name: Agent Armory ${{ steps.ver.outputs.version }}
+          version: ${{ steps.ver.outputs.version }}
+          category: main
+          # Moves the previous version into the archive instead of leaving it listed.
+          # Flip to false to keep every version visible in the Files tab.
+          archive_existing_version: true
+          update_mod_version: true
+          description: |
+            BETA. Agent Armory - deployable agent gadgets. This file contains the
+            Cluster Seeker: a throwable pod that lands, follows you, and bursts into
+            ten autonomous drones when enemies come close. They pick their own targets
+            and detonate on contact. Unlocked by the Explosives skill at level 35,
+            or earlier from the Cluster Seeker Schematic.
+
+            Played and verified on game version ${{ env.TESTED_VERSIONS }}. 3.0.0 and
+            3.0.1 load cleanly but were not played on this build, and other 3.x builds
+            are untested. No other mods required. Contains a Harmony DLL, so
+            EasyAntiCheat must be off. Multiplayer: install on the server AND on every
+            client - asset bundles are not sent from server to client.
+
+            ${{ steps.notes.outputs.changelog }}

@@ -2,15 +2,23 @@
 <configs>
 	<append xpath="/recipes">
 
-		<!-- Werkbank-Rezept, freigeschaltet durch `thrownSeekerClusterSchematic` (items.xml).
+		<!-- Werkbank-Rezept mit ZWEI Freischaltwegen: dem Schematic
+		     `thrownSeekerClusterSchematic` (items.xml, setzt die gleichnamige CVar) und ab
+		     Level 35 dem Sprengstoff-Skill (progression.xml). Eines genuegt.
 		     Zutaten am Vorbild der Kontaktgranate, aber eine Materialstufe hoeher (Stahl statt
 		     Eisen, plus Elektronik) - das Ding sucht sich seine Ziele selbst.
 
 		     `learnable` ist der SCHALTER, nicht bloss eine Beschriftung: `Recipe.IsUnlocked`
 		     gibt ohne diesen Tag sofort `true` zurueck. Ohne ihn war der Cluster Seeker ab
 		     Minute eins craftbar - staerker als die Kontaktgranate, die Demolitions verlangt,
-		     und ohne jedes Gate. -->
-		<recipe name="thrownSeekerCluster" count="1" craft_time="20" craft_area="workbench" tags="learnable,workbenchCrafting">
+		     und ohne jedes Gate.
+
+		     ⚠ `thrownSeekerCluster` als dritter Tag ist KEINE Doppelung des Rezeptnamens,
+		     sondern die Bruecke zum Progressions-Weg: der passive_effect in progression.xml
+		     trifft ueber `tags` genau diesen Eintrag. Vanilla macht es genauso - jede Zeile
+		     der `craftingExplosives`-effect_group traegt den Itemnamen als Tag. Faellt der
+		     Tag weg, greift nur noch das Schematic, und zwar ohne jede Fehlermeldung. -->
+		<recipe name="thrownSeekerCluster" count="1" craft_time="20" craft_area="workbench" tags="learnable,workbenchCrafting,thrownSeekerCluster">
 			<ingredient name="resourceMechanicalParts" count="3"/>
 			<ingredient name="resourceGunPowder" count="18"/>
 			<ingredient name="resourceForgedSteel" count="3"/>

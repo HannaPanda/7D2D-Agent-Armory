@@ -42,7 +42,7 @@ public class MinEventActionSeekerExplode : MinEventActionTargetedBase
     private string blockTags = "";
     private EnumDamageTypes damageType = EnumDamageTypes.Corrosive;   // vanilla-Default (6)
 
-    private const bool DBG = true;   // vor Release auf false, wie in EAISeekerDetonate/EAISeekerPod
+    private const bool DBG = false;  // vor Release auf false, wie in EAISeekerDetonate/EAISeekerPod
 
     // Die ItemValue, die als Schadensquelle mitgegeben wird. DARF NICHT null SEIN, sobald der
     // Verursacher ein SPIELER ist:

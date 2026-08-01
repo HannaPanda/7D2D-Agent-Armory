@@ -7,6 +7,16 @@
 		<buff name="buffSeekerClusterArm" name_key="buffSeekerClusterArm" hidden="true">
 			<duration value="0.75"/>
 			<effect_group>
+				<!-- Aktivierungston: das akustische Telegramm "ich habe was gesehen und
+				     gehe gleich auf". Sitzt bewusst HIER und nicht mehr am Item - der Wurf
+				     ist stumm, das Aufschalten des gelandeten Pods ist der dramatische
+				     Moment. Die 0.68 s des Clips decken die 0.75 s Zuendverzoegerung fast
+				     genau ab, die Beeps sind also durch, wenn er aufplatzt.
+				     `play_at_self` = am Pod, nicht im Kopf des Spielers: der Ton soll aus
+				     der Richtung kommen, in der es gleich knallt (und Mitspieler sollen
+				     ihn hoeren). -->
+				<triggered_effect trigger="onSelfBuffStart" action="PlaySound"
+					sound="agentarmory_seeker_activate" play_at_self="true"/>
 				<!-- Custom C# action, resolved via ReflectionHelpers.GetTypeWithPrefix. -->
 				<!-- Custom actions are resolved via Type.GetType(prefix+name), which only
 				     searches Assembly-CSharp unless the name is assembly-qualified. -->

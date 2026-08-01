@@ -51,7 +51,8 @@ Planned: chem launcher, throwable turret, disposable gun drone, hive.
   `Patch_SeekerStepLimiter` is what re-binds them.
 - A subclass of `EAIApproachAndAttackTarget` that overrides `CanExecute` without calling base
   must also override `Continue()`.
-- Asset bundles are compressed — you cannot verify their contents by scanning bytes. Verify at
-  runtime.
+- Asset bundles are compressed, so a byte scan finds nothing — but they **can** be verified
+  offline: `tools/bundle_peek.py` unpacks UnityFS with the stdlib and lists the asset names.
+  Use it before blaming the XML for a missing model.
 
 Full reasoning and the IL evidence for each: `docs/architecture/seeker.md`.

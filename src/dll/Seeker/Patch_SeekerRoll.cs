@@ -15,6 +15,12 @@ using UnityEngine;
 [HarmonyPatch(typeof(EntityAlive), "OnUpdateEntity")]
 public static class Patch_SeekerRoll
 {
+    // Gilt nur fuer die reinen Diagnose-Zeilen. Die `Debug.LogWarning`-Aufrufe in dieser Datei
+    // bleiben ABSICHTLICH ungegated: sie melden echte Fehlzustaende (Rettung, verworfener
+    // Modellversatz) und sind das Einzige, woran man in einem fremden Log erkennt, dass etwas
+    // schiefging. Wer sie stumm schaltet, macht Fehlerberichte wertlos.
+    private const bool DBG = false;
+
     private static EntityClass podClass, childClass;
     private static bool resolved;
 
@@ -301,8 +307,9 @@ public static class Patch_SeekerRoll
 
             modelTf[id] = model;
             modelYFix[id] = model.localPosition.y + deltaLocal;
-            Debug.Log($"[SeekerPhysDbg] {id} modelOffset localY {model.localPosition.y:0.000}" +
-                      $" -> {modelYFix[id]:0.000} (deltaLocal={deltaLocal:0.000})");
+            if (DBG)
+                Debug.Log($"[SeekerPhysDbg] {id} modelOffset localY {model.localPosition.y:0.000}" +
+                          $" -> {modelYFix[id]:0.000} (deltaLocal={deltaLocal:0.000})");
         }
 
         if (modelYFix.TryGetValue(id, out float wantY))

@@ -59,7 +59,7 @@ public class EAISeekerPod : EAIApproachAndAttackTarget
     // Throttled diagnostics: EAISeekerPod previously had ZERO logging, so the log gave no
     // evidence at all about why "the pod doesn't follow properly". Log state ~1x/sec (not
     // every tick, to avoid the same log-spam bug AITarget-1 caused on the children).
-    private const bool DBG = true;   // flip to false before release
+    private const bool DBG = false;  // flip to false before release
     private float nextDbgTime = -1f;
     private static void Dbg(string s) { if (DBG) UnityEngine.Debug.Log("[SeekerPodDbg] " + s); }
 

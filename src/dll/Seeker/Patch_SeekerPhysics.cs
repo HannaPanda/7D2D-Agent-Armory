@@ -29,6 +29,11 @@ using UnityEngine;
 [HarmonyPatch(typeof(EntityAlive), "OnUpdateEntity")]
 public static class Patch_SeekerPhysics
 {
+    // Gilt nur fuer die reinen Diagnose-Zeilen (Kapselmasse pro Entity). Die
+    // `Debug.LogWarning`-Aufrufe bleiben ABSICHTLICH ungegated: defekte Kapsel und
+    // Hard-Lifetime sind echte Fehlzustaende, die in einem fremden Log sichtbar sein muessen.
+    private const bool DBG = false;
+
     private static EntityClass podClass, childClass;
     private static bool resolved;
 
@@ -355,7 +360,7 @@ public static class Patch_SeekerPhysics
         if (pt != null)
             capsuleInfo[id] += $" | layer={pt.gameObject.layer}";
 
-        Debug.Log($"[SeekerPhysDbg] {id} {capsuleInfo[id]}");
+        if (DBG) Debug.Log($"[SeekerPhysDbg] {id} {capsuleInfo[id]}");
     }
 }
 

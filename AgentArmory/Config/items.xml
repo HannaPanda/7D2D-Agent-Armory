@@ -7,16 +7,83 @@
 		     explosion source and spawns the cluster pod at the blast position. -->
 		<item name="thrownSeekerCluster">
 			<!-- param1 ist die AUSSCHLUSSLISTE fuer Extends (in ItemClassesFromXml.parseItem an
-			     ',' zerlegt). `UnlockedBy` muss raus: die Kontaktgranate erbt dort
-			     "craftingExplosives", und dieser Wert steuert nichts, er BESCHRIFTET nur das
-			     Craftingmenue ("Freigeschaltet durch Sprengstoff-Skill"). Freigeschaltet wird
-			     das Rezept bei uns aber ueber das Schematic (siehe unten), also waere die
-			     geerbte Beschriftung schlicht gelogen. -->
-			<property name="Extends" value="thrownGrenadeContact" param1="PreviousTechItem,UnlockedBy"/>
-			<property name="CustomIcon" value="thrownGrenadeContact"/>
-			<property name="CustomIconTint" value="80,180,255"/>
-			<property name="TintColor" value="80,180,255"/>
+			     ',' zerlegt).
+			     ⚠ `UnlockedBy` steht hier BEWUSST NICHT MEHR drin (Stand 2026-08-01). Der
+			     geerbte Wert "craftingExplosives" steuert nichts, er BESCHRIFTET nur - er
+			     speist ausschliesslich UI (`XUiC_CraftingInfoWindow`,
+			     `XUiC_ItemActionList.HandleUnlockedBy`, `XUiC_UnlockByList`), kein einziger
+			     Aufrufer prueft damit irgendeine Freischaltung. Solange das Rezept nur ueber
+			     das Schematic ging, war die Beschriftung falsch und deshalb ausgeschlossen;
+			     seit progression.xml den Sprengstoff-Skill als Weg ergaenzt, stimmt sie - und
+			     ist der einzige Hinweis im Craftingmenue, WO man das Rezept herbekommt.
+			     `Action1` raus: die Ladung wird nicht mehr scharfgeschaltet (siehe
+			     FusePrimeOnActivate unten), also darf es die Aktion gar nicht erst geben -
+			     sonst koennte man den Zuender per Rechtsklick IN DER HAND starten.
+			     ⚠ Dass ein ganzer `<property class="…">`-Block ausschliessbar ist, ist nicht
+			     selbstverstaendlich: `DynamicProperties.CopyFrom` laeuft ueber `Classes` und
+			     ueberspringt einen Block, dessen Schluessel im Ausschluss-HashSet steht
+			     (IL_005e..IL_006e). Leerzeichen nach dem Komma sind erlaubt, die Namen
+			     werden vor dem Eintragen getrimmt. -->
+			<property name="Extends" value="thrownGrenadeContact" param1="PreviousTechItem,Action1"/>
+			<!-- Eigenes Inventarsymbol: PNG unter UIAtlases/ItemIconAtlas/<value>.png,
+			     der Wert ist der Dateiname OHNE .png. Kein CustomIconTint mehr - der
+			     faerbte nur das geliehene vanilla-Granatensymbol ein.
+			     TintColor bleibt: das faerbt das 3D-MODELL (Hand/Boden), das bis zum
+			     eigenen Prefab weiter die vanilla-Granate ist. -->
+			<property name="CustomIcon" value="seekerCluster"/>
 			<property name="DisplayType" value="ammoGrenadeContact"/>
+
+			<!-- Eigenes Modell in der Hand, im Flug und am Boden.
+			     `ItemClass.CloneModel` waehlt nach MeshPurpose: 2/Hand -> `HandMeshfile`,
+			     1/Drop -> `DropMeshfile`, beide mit Rueckfall auf `Meshfile`. Wir setzen
+			     nur `Meshfile` und decken damit alle drei Faelle ab.
+			     ⚠ Das Fluggeschoss ist KEIN Sonderfall: `ItemActionThrowAway.throwAway`
+			     endet auf `IGameManager.ItemDropServer(...)`, das geworfene Ding ist also
+			     ein normales EntityItem und laeuft ueber den Drop-Pfad. Wer nur
+			     `HandMeshfile` setzt, wirft weiter eine vanilla Granate.
+			     Schreibweise beachten: kleines "f" in "file" (so stehen die Literale in
+			     `ItemClassesFromXml.parseItem`); `MeshFile` ist der C#-Feldname und wird
+			     in der XML stillschweigend ignoriert.
+			     Zeigt das Item in der Hand ein Stueck LEDER, wurde das Asset nicht
+			     gefunden - `CloneModel` faellt bei null hart auf leather.fbx zurueck. -->
+			<property name="Meshfile" value="#@modfolder:Resources/seekerdrone.unity3d?SeekerCharge.prefab"/>
+
+			<!-- Animationssatz. Von den sechs HoldTypes, die ueberhaupt werfen koennen
+			     (25 Rohrbombe, 40 Stein/Schneeball, 54 Molotow, 57 Granate,
+			     62 Zeitladung, 66 Dynamit), ist 40 der EINZIGE ohne Scharfschalt-Geste -
+			     `resourceRockSmall`/`resourceSnowBall` haben gar keine Action1. Genau das
+			     wollen wir jetzt: reiner Wurf, und die Hand fasst ein rundes Objekt statt
+			     an einer Kugel herumzutippen.
+			     Vorgeschichte: 57 (geerbt) zog einen Stift aus einer Kugel, 62
+			     (Zeitladung) tippte darauf herum - beides Gesten fuer Geraete mit
+			     Bedienelementen, die es hier nicht gibt.
+			     ⚠ Anderer HoldType = anderer Anheftungspunkt: Groesse und Pivot des
+			     Handmodells sind fuer diese Animation neu gesetzt, die Werte von 57/62
+			     gelten nicht weiter. -->
+			<property name="HoldType" value="40"/>
+
+			<!-- ⚠ IMMER SCHARF - kein Rechtsklick noetig. `ItemClassTimeBomb.OnDroppedUpdate`
+			     verlangt `ItemValue.Meta > 0` (= scharfgeschaltet) ausschliesslich dann, wenn
+			     `mustPrime` gesetzt ist: `ldfld mustPrime; brfalse.s` ueberspringt die
+			     Pruefung komplett. Mit false zuendet der Wurf also auf Aufprall, ohne
+			     Vorbereitung. Zusammen mit dem Action1-Ausschluss oben gibt es damit
+			     ueberhaupt keine Scharfschaltung mehr - passend zu einer Drohnen-Pod, die
+			     sich selbst aufschaltet, wenn sie Gegner sieht (der Aktivierungston sitzt
+			     jetzt genau dort, siehe buffs.xml). -->
+			<property name="FusePrimeOnActivate" value="false"/>
+			<!-- Geerbt von thrownGrenadeContact: DropScale 2.5 - die liegende Variante ist
+			     absichtlich groesser als die echte Weltgroesse, damit man sie findet.
+			     Material Mmetal (Aufprallgeraeusch/Impact-Effekt) bleibt unangetastet;
+			     HoldType wird oben ueberschrieben.
+			     TintColor ist RAUS: das lief ueber `UpdateLight.SetTintColorForItem` und
+			     MULTIPLIZIERT auf die Albedo - auf dem texturierten Eigenmodell wuerde es
+			     nur abdunkeln. Faerbung gehoert jetzt ins Material. -->
+			<!-- Kein `Sound_start` fuers Scharfmachen mehr - es gibt kein Scharfmachen.
+			     Der Aktivierungston sitzt jetzt auf `buffSeekerClusterArm` (buffs.xml),
+			     also in dem Moment, in dem der gelandete Pod Gegner erfasst; die 0.68 s
+			     des Tons decken die 0.75 s Zuendverzoegerung fast genau ab.
+			     Geerbt und unveraendert: SoundUnholster/SoundPickup/SoundPlace und
+			     Action0 `Sound_start` (grenade_throw, der Abwurf). -->
 			<property name="Stacknumber" value="20"/>
 			<property name="EconomicValue" value="250"/>
 
@@ -40,8 +107,15 @@
 		</item>
 
 		<!-- ============================================================
-		     SCHEMATIC - schaltet das Rezept oben frei.
+		     SCHEMATIC - der ZWEITE der beiden Freischaltwege.
 		     ============================================================
+		     ⚠ STAND 2026-08-01: seit progression.xml gehen BEIDE Wege. Der Absatz unten
+		     erklaert weiterhin richtig, WIE sie funktionieren, aber die Begruendung
+		     "wir nehmen (a)" ist ueberholt - (b) ist als `<append>` vertraeglich genug,
+		     und ein reiner Loot-Fund ist fuer jemanden, der den Mod in ein laufendes
+		     Spiel nimmt, unter Umstaenden gar nicht erreichbar. Das Schematic bleibt als
+		     der frueh-und-mit-Glueck-Weg (und als Absicherung, falls ein anderer Mod die
+		     craftingExplosives-Progression ersetzt).
 		     WIE DIE FREISCHALTUNG WIRKLICH FUNKTIONIERT (IL `Recipe.IsUnlocked`):
 		       if (!IsLearnable) return true;
 		       return EffectManager.GetValue(RecipeTagUnlocked, ..., basis: GetCVar(recipeName),
@@ -50,10 +124,9 @@
 		       (a) eine CVar, die EXAKT SO HEISST WIE DAS REZEPT, auf > 0 setzen  <- Schematic
 		       (b) ein passive_effect "RecipeTagUnlocked", der einen der Rezept-Tags trifft
 		           <- der Magazin-/Progression-Weg, den vanilla fuer Sprengstoff nutzt
-		     Wir nehmen (a). Der Grund ist nicht Geschmack, sondern Vertraeglichkeit: (b) muesste
-		     per XPath in die effect_group von `craftingExplosives` in der vanilla progression.xml
-		     schreiben - ein fremder Knoten, um den sich in einer grossen Modliste mehrere Mods
-		     streiten koennen. Das Schematic ist vollstaendig in sich geschlossen.
+		     Das Schematic ist Weg (a) und vollstaendig in sich geschlossen; Weg (b) liegt
+		     in progression.xml, mitsamt der Begruendung und dem Tag, den das Rezept dafuer
+		     tragen muss.
 		     Der CVar-Name MUSS dem Rezeptnamen entsprechen, nicht dem Itemnamen (hier zufaellig
 		     identisch, weil das Rezept genauso heisst wie das Item). -->
 		<item name="thrownSeekerClusterSchematic">
@@ -61,8 +134,7 @@
 			<property name="CreativeMode" value="Player"/>
 			<!-- Wie bei den vanilla Schematics: das Buch traegt das Icon DESSEN, was es
 			     freischaltet; das Buch-Overlay kommt aus schematicMaster (ItemTypeIcon). -->
-			<property name="CustomIcon" value="thrownGrenadeContact"/>
-			<property name="CustomIconTint" value="80,180,255"/>
+			<property name="CustomIcon" value="seekerCluster"/>
 			<!-- MUSS gesetzt werden: `schematicMaster` vererbt DescriptionKey=
 			     "schematicGeneralGroupDesc". Ohne diese Zeile greift also NICHT die uebliche
 			     Namenskonvention <item>Desc, sondern der geerbte Sammeltext. -->

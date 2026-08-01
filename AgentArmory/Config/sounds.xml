@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<configs>
+	<append xpath="/Sounds">
+
+		<!-- Aktivierungston der Cluster-Ladung (kurze Beeps + Klick, 0.68 s). Gespielt
+		     von `buffSeekerClusterArm` (buffs.xml) in dem Moment, in dem der gelandete
+		     Pod Gegner erfasst - 0.75 s bevor er in die Kinder aufplatzt.
+
+		     WARUM NICHT AM ITEM: urspruenglich sollte er das vanilla "Stift ziehen"-
+		     Klicken beim Scharfmachen ersetzen. Der Weg war eine Sackgasse und ist
+		     lehrreich genug, um ihn festzuhalten - die Beweiskette steht in der
+		     LEARNINGS.md der `7d2d-modding`-Skill (Eintrag vom 2026-08-01). Kurz:
+		     `grenade_pullpin` kommt aus ZWEI Quellen (Action1 `Sound_start`, gesetzt von
+		     einem anderen Mod, plus ein `AnimationEvent` im Wurf-Clip), und keine davon
+		     gehoert zu einer Kugel. Geloest ist es jetzt eine Ebene hoeher: es gibt gar
+		     kein Scharfmachen mehr (`FusePrimeOnActivate=false`, Action1 ausgeschlossen,
+		     `HoldType 40` = reiner Wurf), und der Ton sitzt beim Aufschalten des Pods.
+
+		     CLIPNAME: `AssetBundleManager._get` ruft `GameIO.RemoveFileExtension` auf dem
+		     Teil hinter dem `?`, bevor es `AssetBundle.LoadAsset` fragt - `activate` und
+		     `activate.wav` sind also gleichwertig. Hier ohne Endung, wie in den anderen
+		     Mods der Modliste ueblich.
+
+		     AUDIOSOURCE + NOISE sind 1:1 von `grenade_pullpin` uebernommen: dieselben
+		     3D-/Netzwerk-Prefabs, dasselbe `Noise ID=2 noise=11 time=3`.
+		     Die Noise-Zeile ist BEWUSST drin, auch wenn der Ton jetzt vom Pod kommt und
+		     nicht mehr vom Spieler: der aufschaltende Pod zieht damit Zombies zu sich -
+		     also genau dorthin, wo 0.75 s spaeter die Kinder starten. Das ist kein
+		     Nebeneffekt, sondern der gewuenschte Koeder. Wer den Pod leise haben will,
+		     loescht die Zeile; einen Stealth-Vorteil beim Werfen gibt es dadurch nicht,
+		     der Wurf selbst ist ohnehin stumm. -->
+		<SoundDataNode name="agentarmory_seeker_activate">
+			<AudioSource name="@:Sounds/Prefabs/AudioSource_WeaponFire.prefab"/>
+			<NetworkAudioSource name="@:Sounds/Prefabs/AudioSource_WeaponFire_Network.prefab"/>
+			<Noise ID="2" noise="11" time="3" muffled_when_crouched="0.5"/>
+			<AudioClip ClipName="#@modfolder:Resources/seekerdrone.unity3d?activate"/>
+			<LocalCrouchVolumeScale value="1"/>
+			<CrouchNoiseScale value="1"/>
+			<NoiseScale value="1"/>
+			<MaxVoices value="3"/>
+			<MaxRepeatRate value="0.001"/>
+		</SoundDataNode>
+
+	</append>
+</configs>

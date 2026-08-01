@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<configs>
+
+	<!-- ============================================================
+	     ZWEITER FREISCHALTWEG: der normale Sprengstoff-Skill.
+	     ============================================================
+	     Warum ueberhaupt ein zweiter: das Schematic muss GEFUNDEN werden. Wer den Mod in
+	     ein laufendes Spiel nimmt, hat Buecherregale und Werkzeugkisten seiner Basisregion
+	     laengst durch - der Bauplan kann dann sehr lange ausbleiben, und das Rezept ist
+	     unerreichbar, obwohl der Mod laeuft. Ueber die Progression waechst man dagegen
+	     zwangslaeufig hinein.
+
+	     `Recipe.IsUnlocked` (IL) verodert beide Wege:
+	         if (!IsLearnable) return true;
+	         return EffectManager.GetValue(RecipeTagUnlocked, …,
+	                                       basis: player.GetCVar(recipeName),
+	                                       tags:  recipe.tags) > 0;
+	     Basis ist die CVar (das Schematic setzt sie auf 1), und der passive_effect unten
+	     setzt sie ab Level 35 ohnehin. Eines von beidem genuegt; sie stoeren sich nicht.
+	     Unterhalb von Level 35 greift der Effekt gar nicht erst, die CVar geht also
+	     unveraendert durch - ein bereits gelesenes Schematic wird nicht wieder entwertet.
+
+	     ⚠ VANILLA HAT KEINEN SAMMEL-TAG ZUM ANHAENGEN. Jede Zeile in der effect_group von
+	     `craftingExplosives` traegt als `tags` den ITEMNAMEN des jeweiligen Rezepts
+	     (`tags="thrownGrenadeContact"` usw.). Man kann sich also nicht an einen bestehenden
+	     Tag haengen, sondern muss eine eigene Zeile ergaenzen - und das Rezept muss den
+	     passenden Tag tragen (siehe recipes.xml).
+
+	     Zum Konflikt-Risiko: `<append>` ist additiv, mehrere Mods koennen dieselbe
+	     effect_group ergaenzen, ohne sich zu ueberschreiben. Riskant waere nur ein Mod,
+	     der `craftingExplosives` als Ganzes ERSETZT und nach uns laedt - dann faellt unsere
+	     Zeile weg. Genau dagegen bleibt das Schematic als zweiter Weg bestehen.
+
+	     LEVEL 35: dieselbe Stufe wie `thrownTimedCharge`, die letzte Wurfwaffe vor den
+	     Raketen. Passt zum Materialaufwand (Stahl + Elektronik + Federn) und dazu, dass die
+	     Ladung selbst harmlos ist - die Wirkung kommt von den Drohnen, nicht vom Sprengsatz.
+	     Zum Verschieben genuegt es, die drei 35 unten gleichzeitig zu aendern
+	     (passive_effect, unlock_level in der Anzeige, Localization-Text). -->
+	<append xpath="/progression/crafting_skills/crafting_skill[@name='craftingExplosives']/effect_group">
+		<passive_effect name="RecipeTagUnlocked" operation="base_set" level="35,100" value="1" tags="thrownSeekerCluster"/>
+	</append>
+
+	<!-- ============================================================
+	     ANZEIGE IM SKILL-BILDSCHIRM
+	     ============================================================
+	     ⚠⚠ EIN ZUSAETZLICHES `<display_entry>` WIRD NIE ANGEZEIGT. Das ist keine Vermutung,
+	     das steht in der Engine und im Layout:
+
+	       1. `XUiC_SkillCraftingInfoWindow.UpdateSkill` iteriert `this.levelEntries` - also
+	          die Liste der WIDGETS - und holt sich pro Widget den Datensatz per Index
+	          (`DisplayDataList[index]`, IL_0081..IL_00ed). Es laeuft NICHT ueber die Daten.
+	          Mehr Datensaetze als Widgets heisst deshalb: der Rest existiert und wird nie
+	          gezeichnet.
+	       2. Das Layout stellt genau fuenf Widgets bereit -
+	          `Data/Config/XUi_InGame/windows.xml`, Fenster `windowSkillCraftingInfo`:
+	          `<grid rows="5" cols="1" … repeat_content="true">`.
+	       3. `craftingExplosives` hat bereits **fuenf** vanilla `display_entry` (T1..T5).
+
+	     Fuenf Plaetze, fuenf Belegungen. Unser sechster fiel hinten runter - exakt das
+	     beobachtete Symptom: "nicht bei Stufe 3, nicht bei Stufe 4, dazwischen nichts".
+	     Ein frueherer Verdacht (`icon` sei ein Sprite- und kein Itemname) stimmt zwar
+	     ebenfalls - siehe unten - war aber nicht die Ursache.
+
+	     DESHALB: keinen sechsten Eintrag anhaengen, sondern den vorhandenen Stufe-3-Eintrag
+	     um einen vierten Punkt ERWEITERN. Das passt auch inhaltlich, der Seeker IST ein
+	     Stufe-3-Sprengmittel, und es kostet keinen Layout-Eingriff. Die Symbolleiste
+	     darunter hat mit `<grid rows="2" cols="7">` vierzehn Plaetze, vier sind unkritisch.
+
+	     ⚠ `icon` ist ein SPRITE-Name aus dem Item-Icon-Atlas, NICHT der Itemname. Beweis in
+	     vanilla, in genau dieser Zeile: `resourceGunPowderBundle` hat
+	     `CustomIcon="resourceGunPowder"`, und das icon-Attribut nennt `resourceGunPowder`,
+	     waehrend das `unlock_entry` `resourceGunPowderBundle` nennt. Bei allen anderen
+	     Eintraegen heissen Item und Sprite gleich, deshalb faellt es nie auf. Unser Sprite
+	     heisst `seekerCluster` (CustomIcon in items.xml), nicht `thrownSeekerCluster`.
+
+	     Die drei Listen (`icon`, `name_key`, `unlock_level`) sind positionsgleich, und
+	     `unlock_tier` am `unlock_entry` ist der 1-basierte Index in diese Listen - unser
+	     Punkt ist also der vierte in allen vieren.
+
+	     ⚠ Anders als die effect_group oben ist das ein EINGRIFF in einen vanilla-Knoten:
+	     ein anderer Mod, der dieselben drei Attribute setzt, gewinnt oder verliert je nach
+	     Ladereihenfolge. Findet der XPath nichts (Mod ersetzt craftingExplosives), passiert
+	     stillschweigend nichts - die Freischaltung oben und das Schematic bleiben davon
+	     unberuehrt, nur die Ankuendigung fehlt dann. -->
+	<set xpath="/progression/crafting_skills/crafting_skill[@name='craftingExplosives']/display_entry[@name_key='explosivesT3-1,explosivesT3-2,explosivesT3-3']/@icon">mineAirFilter,resourceGunPowder,thrownTimedCharge,seekerCluster</set>
+	<set xpath="/progression/crafting_skills/crafting_skill[@name='craftingExplosives']/display_entry[@name_key='explosivesT3-1,explosivesT3-2,explosivesT3-3']/@unlock_level">25,30,35,35</set>
+	<set xpath="/progression/crafting_skills/crafting_skill[@name='craftingExplosives']/display_entry[@name_key='explosivesT3-1,explosivesT3-2,explosivesT3-3']/@name_key">explosivesT3-1,explosivesT3-2,explosivesT3-3,agentArmoryExplosivesSeeker</set>
+
+	<!-- MUSS nach dem name_key-`set` stehen: der XPath oben matcht auf den ALTEN Wert, und
+	     dieses `append` braucht denselben Knoten. Die Reihenfolge innerhalb einer Datei ist
+	     die Ausfuehrungsreihenfolge - nach dem letzten `set` traegt der Knoten den neuen
+	     name_key, deshalb greift hier der neue Wert. -->
+	<append xpath="/progression/crafting_skills/crafting_skill[@name='craftingExplosives']/display_entry[@name_key='explosivesT3-1,explosivesT3-2,explosivesT3-3,agentArmoryExplosivesSeeker']">
+		<unlock_entry item="thrownSeekerCluster" unlock_tier="4"/>
+	</append>
+
+</configs>

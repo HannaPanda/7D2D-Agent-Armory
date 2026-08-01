@@ -1,0 +1,53 @@
+{
+  "modId": "agentarmory",
+  "displayName": "Agent Armory",
+  "repo": "C:\\Users\\sourc\\7D2D-Agent-Armory",
+  "variants": [
+    {
+      "name": "Default",
+      "folder": "AgentArmory",
+      "notes": "One folder for everything - no editions."
+    }
+  ],
+  "dependencies": [],
+  "stage1": {
+    "harmonyPattern": "\\[AgentArmory\\] Harmony patches applied: [1-9]",
+    "requireHarmony": true,
+    "extraFatalPatterns": []
+  },
+  "stage2": {
+    "logFilter": "AgentArmory|Seeker|HarmonyException| EXC | ERR ",
+    "evidencePatterns": [
+      "\\[AgentArmory\\] Harmony patches applied: [1-9]",
+      "\\[AgentArmory\\] initialised"
+    ],
+    "evidenceLabel": "IModApi-Einstieg gelaufen, Harmony-Patches angewandt",
+    "visualQuestion": "Handmodell und Inventarsymbol eigen (kein Leder, kein Vanilla-Granatensymbol)? Wurf ohne Rechtsklick scharf, Pod landet und folgt? Beim Erfassen der Aktivierungston, dann zehn Drohnen, die jagen und detonieren? Rezept unter Sprengstoff ab Stufe 35 sichtbar?"
+  },
+  "profiles": [
+    {
+      "name": "matrix",
+      "variant": "Default",
+      "versions": [
+        "3.0.0",
+        "3.0.1",
+        "3.1.0"
+      ],
+      "stages": [
+        "headless"
+      ],
+      "notes": "Stage 1 on every supported build. Proves load/Harmony/XML - nothing about models, sound or AI."
+    },
+    {
+      "name": "gui",
+      "variant": "Default",
+      "versions": [
+        "3.1.0"
+      ],
+      "stages": [
+        "gui"
+      ],
+      "notes": "Visual check. Everything this mod is judged on is graphical or behavioural: asset bundle, icon atlas, drone AI, sound. A missing bundle asset does NOT log - CloneModel silently falls back to leather.fbx - so only a look catches it."
+    }
+  ]
+}

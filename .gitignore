@@ -7,6 +7,7 @@ out/
 # Backups / temp
 *.dll.bak
 *.bak
+*.bak-*
 *.tmp
 
 # Unity project (only the exported source PNGs + scripts live in src/texture)
@@ -22,5 +23,10 @@ out/
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# Release zips are built by CI, never committed.
 dist/
-nexus/
+
+# `nexus/` is NOT ignored: the mod-page description hotlinks nexus/images/* straight
+# out of this repo via raw.githubusercontent.com, so those files have to be pushed
+# or the live description shows broken images.

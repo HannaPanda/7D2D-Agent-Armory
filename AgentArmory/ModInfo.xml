@@ -2,9 +2,14 @@
 <xml>
 	<Name value="AgentArmory" />
 	<DisplayName value="Agent Armory" />
-	<Description value="Deployable agent gadgets: throwable cluster seeker that splits into autonomous drones. More modules planned (chem launcher, throwable turret, disposable gun drone, hive). Harmony DLL + XML. Built for 7DTD 3.0.1." />
+	<Description value="BETA. Deployable agent gadgets: throwable cluster seeker that splits into ten autonomous drones which pick their own targets and detonate on contact. More modules planned (chem launcher, throwable turret, disposable gun drone, hive). Harmony DLL + XML. Played and verified on 7DTD 3.1.0." />
 	<Author value="Hanna" />
-	<Version value="0.1.0" />
+	<!-- ⚠ MUSS fuer System.Version.TryParse parsebar bleiben: `Mod.parseModInfoV2` schiebt
+	     diesen Wert durch TryParse und schreibt bei einem Fehlschlag bei JEDEM Spielstart
+	     "does not define a valid Version. Please consider updating it for future
+	     compatibility." ins Log. "1.0.0-beta" faellt genau da durch. Beta wird deshalb ueber
+	     die Zahl ausgedrueckt (0.x) und im Klartext, nicht ueber ein Suffix. -->
+	<Version value="0.9.0" />
 	<Website value="https://github.com/HannaPanda/7D2D-Agent-Armory" />
 	<SkipWithAntiCheat value="true" />
 </xml>

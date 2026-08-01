@@ -242,7 +242,7 @@ public class EAISeekerDetonate : EAIApproachAndAttackTarget
     private Vector3? lastOrigin;
     private int originShifts;
 
-    private const bool DBG = true;   // flip to false to silence [SeekerDbg] logging
+    private const bool DBG = false;  // flip to false to silence [SeekerDbg] logging
     private static void Dbg(string s) { if (DBG) UnityEngine.Debug.Log("[SeekerDbg] " + s); }
 
     // A target is "unreachable" only for a cooldown window, then we allow a retry (it may
