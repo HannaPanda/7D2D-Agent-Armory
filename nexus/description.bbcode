@@ -5,27 +5,25 @@
 
 Every explosive in this game asks you to be in the right place at the right time. Aim the throw, judge the fuse, hope they are still standing there in three seconds.
 
-[b]Agent Armory[/b] adds gadgets that do that part themselves. The first one is the [b]Cluster Seeker[/b]: a pod you throw, that follows you, and that bursts into [b]ten autonomous drones[/b] the moment something hostile gets close. They pick their own targets and detonate on contact.
+[b]Agent Armory[/b] adds gadgets that do that part themselves. The first one is the [b]Cluster Seeker[/b]: a throwable pod that follows you and releases autonomous drones when something hostile gets close. More modules are planned.
 
 [center][color=#ef6a5a]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/color][/center]
 
-[size=5][b][color=#ef6a5a]This is a beta - here is exactly what that means[/color][/b][/size]
-The Seeker is finished and plays the way it is meant to. It is called a beta because of what is around it, and I would rather list that than let you find it:
-[list]
-[*][b]One game build, properly.[/b] V 3.1.0 was played through with this exact version - hand model, icon, sound, the pod landing and following, ten drones hunting, the skill entry, all looked at. [b]V 3.0.0 and V 3.0.1[/b] load cleanly and were played during development, but not on this build, so I am not going to write them down as if they were.
-[*][b]The balance is a first draft.[/b] Ten drones, 180 damage each, unlocked at Explosives 35. Those numbers came from comparing against vanilla's throwables, not from a hundred hours of play. If it feels too strong, too weak, or unlocked at the wrong point, [b]say so in the Posts tab[/b] - that is the main thing I want out of a beta.
-[*][b]One module of a planned set.[/b] The chem launcher, throwable turret, gun drone and hive are not in this file yet.
-[/list]
+[size=5][b][color=#ef6a5a]This is a beta[/color][/b][/size]
+The Cluster Seeker is feature-complete, but the balance is still a first draft. If it feels too strong, too weak, or unlocked at the wrong point, [b]say so in the Posts tab[/b].
 
 [center][color=#ef6a5a]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/color][/center]
 
 [size=5][b][color=#ef6a5a]The Cluster Seeker[/color][/b][/size]
 [list]
-[*][b]Throw it, and that is the whole input.[/b] No pin to pull, no timer to set, no right-click to arm. The charge goes off on impact and the pod is out.
-[*][b]The pod waits with you.[/b] With nothing in range it follows you around instead of sitting where it landed - so a pod you threw too early is not a pod you wasted.
+[*][b]Throw it, and that is the whole input[/b]: no pin, no timer, no arming. The charge goes off on impact and the pod is out.
+[*][b]The pod waits with you.[/b] With nothing in range it follows you instead of sitting where it landed, so an early throw is not a wasted one.
 [*][b]Ten seekers[/b] burst out when enemies come close. Each one picks its own target, chases it for up to 18 seconds, and detonates on contact for 180 damage in a 4 m radius.
-[*][b]They split up.[/b] The drones divide the available targets between them rather than all ten piling onto the nearest zombie.
-[*][b]It will not eat your base.[/b] The pod itself does 1 damage and no block damage worth the name. Everything that happens comes from the drones.
+[*][b]They split up[/b] and divide the available targets between them rather than all ten piling onto the nearest zombie.
+[*][b]The drones are ground units.[/b] Stairs and rough terrain slow them down, and a target on a roof is a target they will not reach.
+[*][b]It will not eat your base.[/b] The pod itself causes negligible damage. The seekers do the actual work.
+[*][b]Drone kills are your kills[/b], with normal XP and kill credit.
+[*][b]Localized into 13 languages[/b]: EN, DE, ES, FR, IT, JA, KO, PL, PT-BR, RU, TR, ZH-Hans, ZH-Hant.
 [/list]
 
 [center][img]https://raw.githubusercontent.com/HannaPanda/7D2D-Agent-Armory/refs/heads/main/nexus/images/SeekerSwarm.jpg[/img][/center]
@@ -34,55 +32,34 @@ The Seeker is finished and plays the way it is meant to. It is called a beta bec
 [center][size=4][b][color=#ef6a5a]▶ See it work[/color][/b][/size]
 [url=https://www.youtube.com/watch?v=pQ4O9ZTpW90]youtube.com/watch?v=pQ4O9ZTpW90[/url][/center]
 
-[size=5][b][color=#ef6a5a]What it is good at, and what it is not[/color][/b][/size]
-This is not a bigger grenade. A contact grenade puts 341 damage into a five-metre circle the instant it lands, and against a tight crowd it will out-damage a Seeker.
+[size=5][b][color=#ef6a5a]When to throw it[/color][/b][/size]
+Against a tight crowd, a contact grenade thrown at the right moment still does more damage. What the Seeker buys you is [b]not having to be there[/b]. It works around a corner and keeps hunting while you back off and reload. Throw it into the room you are about to leave, not the one you are about to clear.
 
-What the Seeker buys you is [b]not having to be there[/b]. It works around a corner, it finds the straggler you did not see, and it keeps working while you back off and reload. Throw it into the room you are about to leave, not the one you are about to clear.
-
-[b]It does almost nothing to blocks.[/b] Do not bring it to a safe or a horde base you are trying to demolish - that is what the Timed Charge and the rockets are for.
+[b]It does almost nothing to blocks[/b], so leave the safes and the demolition work to the Timed Charge and the rockets.
 
 [center][img]https://raw.githubusercontent.com/HannaPanda/7D2D-Agent-Armory/refs/heads/main/nexus/images/SeekerPod.jpg[/img][/center]
 [center][i]Landed and waiting, with the horde still a street away. It keeps up with you until something comes close enough to be worth splitting for.[/i][/center]
 
-[size=5][b][color=#ef6a5a]How you get one[/color][/b][/size]
-Two ways in, and either is enough:
+[size=5][b][color=#ef6a5a]Unlocking and Crafting[/color][/b][/size]
+Two ways in, and either is enough. Both work on a save you are already deep into.
 [list]
-[*][b]The Explosives skill unlocks it at level 35[/b] - the same rank as the Timed Charge, the last throwable before rockets. Read explosives magazines and you grow into it whether you were looking for it or not.
+[*][b]The Explosives skill unlocks it at level 35[/b], the same rank as the Timed Charge. Reading explosives magazines eventually unlocks it without requiring the schematic.
 [*][b]The Cluster Seeker Schematic[/b] drops from loot and turns up at traders. Find one early and you get there ahead of the skill.
 [/list]
-
 Crafted at the [b]workbench[/b]: 3 mechanical parts, 18 gunpowder, 3 forged steel, 2 electrical parts, 2 springs. Stacks to 20.
-
-[quote]Level 35 was chosen to sit beside the Timed Charge because the Seeker is a mid-game tool, not an endgame one - and because the whole point of hanging it on the skill was that people actually get to use it. Adding the mod to a save you are already deep into works: the skill route does not need you to find anything.[/quote]
 
 [center][color=#ef6a5a]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/color][/center]
 
-[size=5][b][color=#ef6a5a]Requirements[/color][/b][/size]
+[size=5][b][color=#ef6a5a]Requirements and Installation[/color][/b][/size]
 [list]
-[*][b]Played and verified on V 3.1.0.[/b] [b]V 3.0.0 and V 3.0.1[/b] were launched and their logs checked - mod loads, Harmony patches apply, no errors, exceptions or XML problems - but they were not played through on this build, so they do not get the same word. Other 3.x builds are untested, not known-broken. The whole thing is a Harmony DLL, so every release has to re-earn this list from scratch.
-[*][b]EasyAntiCheat must be off.[/b] This mod ships a Harmony DLL. Single-player and private servers.
+[*][b]Tested on V 3.1.0.[/b] V 3.0.0 and V 3.0.1 loaded successfully during development but were not fully tested with this release.
+[*][b]EasyAntiCheat must be disabled.[/b] Single-player and private servers.
 [*][b]No other mods required.[/b]
-[*][b]Multiplayer: everyone needs it, server included.[/b] 7 Days to Die does not send asset bundles from the server to the client, so a player without the mod installed cannot render the pod or the drones.
+[*][b]Multiplayer:[/b] every player and the server must have the mod installed.
 [/list]
+Install the zip with Vortex or MO2, or extract the [i]AgentArmory[/i] folder into [i]7 Days To Die/Mods/[/i], then launch with EAC off.
 
-[size=5][b][color=#ef6a5a]Installation[/color][/b][/size]
-[list=1]
-[*]Install the zip with Vortex or MO2, or extract the [i]AgentArmory[/i] folder into [i]7 Days To Die/Mods/[/i].
-[*]Launch with EAC disabled.
-[/list]
-
-[size=5][b][color=#ef6a5a]Adding and removing mid-save[/color][/b][/size]
-[b]Adding it mid-save is fine[/b] - that is what the skill unlock is for.
-
-[b]Removing it needs one moment of care:[/b] make sure no pod and no drone is alive in the world first. They are custom entity classes, and a save that still contains one cannot resolve it once the mod is gone. Let them run out, then remove the mod. Nothing else is touched - no blocks, no vanilla items, no world edits.
-
-[size=5][b][color=#ef6a5a]Honest notes[/color][/b][/size]
-[list]
-[*][b]The drones are ground units.[/b] They run at things, they do not fly. Stairs and rough terrain slow them down, and a target on a roof is a target they will not reach.
-[*][b]18 seconds, then they are gone.[/b] Deliberately: ten guided explosives loose in the world with no time limit is a performance problem and a balance one.
-[*][b]Kills count as yours.[/b] The drones carry the thrower's ID, so the XP and the kill credit come back to you.
-[*][b]Localized into 13 languages[/b] - EN, DE, ES, FR, IT, JA, KO, PL, PT-BR, RU, TR, ZH-Hans, ZH-Hant.
-[/list]
+[b]Before removing the mod[/b], wait until no pod and no drone is alive in the world. Nothing else is touched: no blocks, no vanilla items, no world edits.
 
 [center][color=#ef6a5a]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/color][/center]
 
@@ -91,27 +68,14 @@ Crafted at the [b]workbench[/b]: 3 mechanical parts, 18 gunpowder, 3 forged stee
 [list]
 [*]First public release for 7 Days to Die V3.0 / V3.1, with the Cluster Seeker.
 [/list]
-[i]Full history: [url=https://github.com/HannaPanda/7D2D-Agent-Armory/blob/main/CHANGELOG.md]CHANGELOG.md[/url] on GitHub.[/i]
 
-[center][color=#ef6a5a]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/color][/center]
+[size=5][b][color=#ef6a5a]AI Disclosure[/color][/b][/size]
+Code, XML configuration and the 13 translations were written with the help of Anthropic's Claude and reviewed before release. The activation sound was generated with the ElevenLabs sound-effect generator. [b]The drone model and its texture are not AI-generated[/b]; they are a commercial asset bought from a human artist.
 
-[size=5][b][color=#ef6a5a]Credits[/color][/b][/size]
+[size=5][b][color=#ef6a5a]Credits and Source[/color][/b][/size]
 [list]
-[*][b]Drone model and texture:[/b] "Hunter Drone Sci-Fi" by its author on [url=https://www.cgtrader.com/3d-models/aircraft/other/hunter-drone-sci-fi]CGTrader[/url], used under a purchased Royalty Free License. It is packed into the mod's asset bundle - please do not extract and pass it on. The inventory icon is a render of that same drone.
+[*][b]Drone model and texture:[/b] "Hunter Drone Sci-Fi" by its author on [url=https://www.cgtrader.com/3d-models/aircraft/other/hunter-drone-sci-fi]CGTrader[/url], used under a purchased Royalty Free License. The inventory icon is a render of that same drone.
 [*][b]Harmony[/b] by Andreas Pardeike.
 [*]The name and the idea of a modular gadget belt are a nod to the skill loadouts of tactical looter shooters. The code, the configuration and the numbers are original.
+[*]Full source on [url=https://github.com/HannaPanda/7D2D-Agent-Armory][b]GitHub[/b][/url], MIT licensed. [b]The drone assets and the sound are not covered by the MIT licence and may not be redistributed with forks.[/b] Fork freely, but bring your own model, material, icon and sound.
 [/list]
-
-[size=5][b][color=#ef6a5a]AI disclosure[/color][/b][/size]
-Parts of this mod were produced with AI assistance. In the interest of transparency:
-[list]
-[*][b]Code, XML configuration and the 13 translations[/b]: written with the help of Anthropic's Claude and reviewed before release.
-[*][b]The activation sound[/b]: generated with the ElevenLabs sound-effect generator.
-[*][b]The drone model and its texture are NOT AI-generated[/b] - they are a commercial asset bought from a human artist (see Credits). Its licence also forbids using it to train or fine-tune AI models, and nothing here does.
-[/list]
-The design, the testing and the final decisions are the author's.
-
-[size=5][b][color=#ef6a5a]Source[/color][/b][/size]
-Full source - Harmony DLL, XML, Unity build script, release workflow - on [url=https://github.com/HannaPanda/7D2D-Agent-Armory][b]GitHub[/b][/url], MIT licensed.
-
-[b]The drone art and the sound are not covered by that MIT licence[/b] - they are licensed to me, not re-licensable onward. Fork the mod freely; bring your own model, material and icon.
