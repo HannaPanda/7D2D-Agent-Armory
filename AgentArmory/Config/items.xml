@@ -281,6 +281,15 @@
 			     wie ein Kieselstein. -->
 			<property name="HoldType" value="62"/>
 			<property name="DisplayType" value="ammoGrenadeContact"/>
+			<!-- ⚠ PLATZHALTER, bis die eigenen Icons da sind. Ohne `CustomIcon` sucht das
+			     Spiel ein Sprite mit dem ITEMNAMEN im Item-Icon-Atlas - das gibt es nicht,
+			     und das Ergebnis ist ein LEERES Inventarfeld ohne jede Fehlermeldung. Genau
+			     das war im ersten Spieltest zu sehen.
+			     Endfassung: pro Turretsorte ein 160x160-PNG unter
+			     `UIAtlases/ItemIconAtlas/<name>.png`, und `CustomIcon` = Dateiname ohne
+			     Endung. Die Schematics zeigen dann automatisch dasselbe Symbol mit dem
+			     Buch-Overlay aus `schematicMaster` (so macht es der Seeker-Bauplan auch). -->
+			<property name="CustomIcon" value="thrownTimedCharge"/>
 			<property name="Stacknumber" value="5"/>
 			<property name="EconomicValue" value="750"/>
 			<property name="Group" value="Ammo/Weapons,Robotics"/>
@@ -601,6 +610,11 @@
 		<item name="thrownAgentTurretGunSchematic">
 			<property name="Extends" value="schematicNoQualityMaster"/>
 			<property name="CreativeMode" value="Player"/>
+			<!-- Wie bei den vanilla Baublaenen traegt das Buch das Symbol DESSEN, was es
+			     freischaltet; das Buch-Overlay kommt aus `schematicMaster` (ItemTypeIcon).
+			     Derselbe Platzhalter wie an den Boxen, bis die eigenen Icons da sind - die
+			     fuenf anderen Baublaene erben ihn ueber `Extends` von hier. -->
+			<property name="CustomIcon" value="thrownTimedCharge"/>
 			<!-- MUSS gesetzt werden: `schematicMaster` vererbt DescriptionKey=
 			     "schematicGeneralGroupDesc", die Namenskonvention <item>Desc greift also
 			     nicht von allein. -->
