@@ -24,7 +24,34 @@ A throwable pod that does the aiming for you.
 - Localized into **13 languages** (EN, DE, ES, FR, IT, JA, KO, PL, PT-BR, RU, TR, ZH-Hans,
   ZH-Hant).
 
-Planned modules: chem launcher, throwable turret, disposable gun drone, hive.
+## Throwable Turrets
+
+A box the size of a shaped charge. Throw it, and an auto-turret builds itself where it lands.
+
+- **Six kinds**, each firing real ammunition and gated behind the perk that goes with it:
+
+  | Turret | Ammunition | Perk | Rounds | Runtime |
+  |---|---|---|---|---|
+  | Gun Sentry | 9mm HP / AP | Gunslinger | 120 | 90 s |
+  | MG Sentry | 7.62 HP / AP | Machine Gunner | 250 | 75 s |
+  | Shotgun Sentry | 12 gauge | Boomstick | 24 | 90 s |
+  | Sniper Sentry | 7.62 AP | Dead Eye | 20 | 120 s |
+  | Flame Sentry | fuel | Turrets | 300 | 60 s |
+  | Shock Sentry | cells | Electrocutioner | 60 | 75 s |
+
+- **Your perk ranks apply to your turret.** The thrower is passed into the damage lookup, so a
+  Machine Gunner build makes its own MG Sentry hit harder.
+- **One-way trip.** The ammunition is built in, the runtime is fixed, and the turret cannot be
+  picked back up. When the magazine or the clock runs out, it packs itself away - no corpse, no
+  loot box.
+- **The flamethrower and the shock turret trade damage for control**: burning and slowing in
+  one case, stunning and slowing in the other.
+- **Unlocked by the matching weapon perk** (rank 2-4 depending on the turret), or earlier from
+  the matching **schematic**, which drops from loot and appears at traders. One schematic
+  covers both ammunition variants of its turret.
+- Localized into **13 languages**.
+
+Planned modules: chem launcher, disposable gun drone, hive.
 
 ## Status
 

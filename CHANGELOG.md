@@ -1,5 +1,53 @@
 # Changelog
 
+## Unreleased
+
+**New module: throwable turrets.** A box you throw like a shaped charge; it deploys an
+auto-turret where it lands. Single use — fixed ammunition, a lifetime, and no picking it back
+up. Six variants across eight craftable boxes, each gated behind and scaling with the weapon
+perk that matches its ammunition.
+
+| Box | Ammunition | Perk | Rounds | Lifetime |
+|---|---|---|---|---|
+| Gun Sentry | 9mm HP / AP | Gunslinger | 120 | 90 s |
+| MG Sentry | 7.62 HP / AP | Machine Gunner | 250 | 75 s |
+| Shotgun Sentry | 12 ga | Boomstick | 24 | 90 s |
+| Sniper Sentry | 7.62 AP | Dead Eye | 20 | 120 s |
+| Flame Sentry | fuel | Turrets | 300 | 60 s |
+| Shock Sentry | cells | Electrocutioner | 60 | 75 s |
+
+- **A turret's stats live in a second, hidden item, not in its entity class.**
+  `ItemValue.ModifyValue` resolves ammunition through `Actions[0] as ItemActionRanged ->
+  MagazineItemNames[SelectedAmmoTypeIndex]`, so the carrier needs an `Action0` of class
+  `Ranged` — which a throwable, with `ThrowAway` in that slot, cannot have. Hence one core
+  item plus one box per variant; the HP and AP boxes differ only in the ammo index.
+- **The perk tag both unlocks and scales.** `GetDamageEntity` passes the *owner* into
+  `EffectManager.GetValue`, so the thrower's perk ranks apply to the turret. For 7.62 the tag
+  is mandatory rather than a bonus: that ammunition gates its base damage on
+  `perkDeadEye,perkMachineGunner`, and without one of them a turret fires for zero.
+- **Flamethrower and shock turret are pure XML.** The `Buff` property on the entity class
+  feeds `buffActions` into `ItemActionAttack.Hit`, which applies them to whatever is hit. The
+  flamethrower reuses the vanilla hazard buffs; the shock turret brings its own rather than
+  inherit `buffShocked`, whose damage is decided by the player's stun-baton perks.
+- **Recipes unlock from combat perks**, which vanilla never does — every `RecipeTagUnlocked`
+  in the game sits in a `crafting_skill`. It works because `Progression.ModifyValue` iterates a
+  flat index over all progression values with no filter on their kind. Six schematics remain as
+  the second route for anyone adding the mod to a running save.
+- **Empty ammunition only switches a vanilla turret off; ours despawns.** Likewise the 10 m
+  owner leash (`JunkTurretActiveRange`) and the active-turret counter are raised or bypassed —
+  the latter matters because `perkTurrets` sets the counter with an untagged `base_set 0`,
+  which would otherwise give a player *with* the turret perk fewer turrets than one without.
+- Two defects the multi-version test caught before they ever ran: **every item needs a
+  `Meshfile`**, even one that never reaches an inventory — and the resulting parse failure
+  drops the whole `items.xml`, so the visible error names an item that is perfectly fine. And
+  the timed charge this box extends has **no `ExplodeOnHit` and `StickPercent=1`**, so without
+  correction the box would have stuck to walls and built its turret in mid-air.
+
+**Not yet verified:** the turrets are silent, and the cause is not found. The vanilla sound
+path was walked in IL and is intact, so each turret now sets its sound explicitly and a probe
+logs the runtime values for the next play test. The flamethrower's per-shot flame effect also
+needs a look. Details in `docs/architecture/turret.md`.
+
 ## 0.9.0 - 2026-08-01 (Beta)
 
 First public release, and a **beta on purpose**: the Cluster Seeker plays the way it should,

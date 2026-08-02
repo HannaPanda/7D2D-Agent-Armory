@@ -69,5 +69,72 @@
 			</effect_group>
 		</buff>
 
+		<!-- ============================================================
+		     LEBENSZEIT EINES AGENT-TURRETS.
+		     ============================================================
+		     Der Buff tut selbst nichts - er IST die Uhr. `TurretDeployer.Deploy` haengt ihn
+		     nach dem Spawn an das Turret und uebergibt die Dauer aus der Wurfbox
+		     (`TurretLifetime`), deshalb steht hier bewusst nur ein Platzhalter: der Wert
+		     unten greift nur, wenn jemand den Buff ohne explizite Dauer setzt.
+
+		     ⚠ WARUM EIN BUFF UND KEIN ZAEHLER IN C#. Zwei Gruende, beide teuer erkauft,
+		     wenn man sie uebersieht:
+		       (1) Buffdauern werden MIT DER ENTITY GESPEICHERT. Eine statische
+		           Dictionary<entityId, float> ist nach dem naechsten Laden leer - ein Turret,
+		           das einen Speicherstand ueberlebt, waere unsterblich. Das faellt beim
+		           Testen fast nie auf, weil man selten mitten in den 90 Sekunden speichert.
+		       (2) `onSelfBuffFinish` ist ein EREIGNIS. Wuerde stattdessen jeden Frame geprueft,
+		           ob der Buff noch da ist, liesse sich "abgelaufen" nicht von "nie gesetzt"
+		           unterscheiden - und ein Tippfehler im Buffnamen wuerde JEDES Turret sofort
+		           nach dem Aufbau verschwinden lassen, ohne eine Fehlerzeile.
+
+		     `onSelfBuffFinish` feuert nur beim regulaeren Ablauf der Dauer, nicht bei jedem
+		     Entfernen (das waere `onSelfBuffRemove`) - genau richtig, sonst wuerde ein
+		     Buffreset das Turret abbauen.
+
+		     Die Action ist assembly-qualifiziert: `ReflectionHelpers.GetTypeWithPrefix` baut
+		     "MinEventAction" + Name und sucht damit sonst nur in Assembly-CSharp. Ohne den
+		     Assemblynamen loest die Klasse einfach nicht auf - ohne Fehlermeldung. -->
+		<buff name="buffAgentTurretLifetime" name_key="buffAgentTurretLifetime" hidden="true">
+			<duration value="90"/>
+			<effect_group>
+				<triggered_effect trigger="onSelfBuffFinish" action="RetireTurret, AgentArmory"/>
+			</effect_group>
+		</buff>
+
+		<!-- ============================================================
+		     SCHOCK-EFFEKT des Schockturrets.
+		     ============================================================
+		     Eigener Buff statt des vanilla `buffShocked`. Der ist zwar genau der richtige
+		     Effekt - 4 s, `damage_type electrical`, `stack_type duration`, und TFP hat den
+		     Fall "Maschine schockt Zombie" mit dem Drohnen-Stun-Mod selbst vorgesehen -,
+		     aber sein SCHADEN wird ueber fremden Kontext entschieden: `ItemHasTags
+		     tags="stunBaton"`, `ProgressionLevel perkIntellectMastery` und die CVar
+		     `_droneStunDamage` (vanilla buffs.xml ab Zeile 6574). Wer ihn direkt anhaengt,
+		     laesst also den Stun-Baton-Skillbaum des Spielers bestimmen, wie hart ein
+		     geworfenes Turret zuschlaegt - und faengt sich jede spaetere TFP-Aenderung
+		     daran ein.
+
+		     Bewusst NICHT von buffShocked geerbt: `<buff>` kennt kein `extends`, und eine
+		     Kopie mit den drei Fremdverzweigungen waere schlimmer als eine eigene, kurze
+		     Fassung.
+
+		     `stack_type duration` heisst: ein zweiter Treffer verlaengert, statt zu stapeln.
+		     Genau richtig fuer ein Turret, das mehrfach pro Sekunde trifft - sonst haette
+		     ein einzelner Zombie nach zwei Sekunden hundert Stapel. -->
+		<buff name="buffAgentShock" name_key="buffAgentShock" description_key="buffAgentShockDesc"
+		      icon="ui_game_symbol_electric_power" icon_color="120,180,240">
+			<damage_type value="electrical"/>
+			<stack_type value="duration"/>
+			<duration value="3"/>
+			<update_rate value="1"/>
+			<effect_group>
+				<!-- Kleiner Schaden pro Sekunde. Die Wirkung des Turrets ist die
+				     Verlangsamung (buffHazard_Slow, an der entity_class), nicht das hier. -->
+				<triggered_effect trigger="onSelfBuffUpdate" action="ModifyStats" stat="Health"
+					operation="add" value="-2"/>
+			</effect_group>
+		</buff>
+
 	</append>
 </configs>

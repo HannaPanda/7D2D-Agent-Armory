@@ -26,5 +26,103 @@
 			<ingredient name="resourceSpring" count="2"/>
 		</recipe>
 
+		<!-- Gun Turret (9mm HP). Zwei Freischaltwege wie beim Seeker: das Schematic
+		     `thrownAgentTurretGunSchematic` (setzt die gleichnamige CVar) und ab Rang 2 der
+		     Gunslinger-Perk (progression.xml). Eines genuegt.
+
+		     ⚠ `learnable` ist der SCHALTER, nicht bloss eine Beschriftung: `Recipe.IsUnlocked`
+		     gibt ohne diesen Tag sofort `true` zurueck, das Rezept waere also ab Minute eins
+		     craftbar. Genau dieser Fehler ist beim Seeker schon einmal passiert.
+
+		     ⚠ `thrownAgentTurretGun` als dritter Tag ist keine Doppelung des Rezeptnamens,
+		     sondern die Bruecke zum Perk-Weg: der passive_effect in progression.xml trifft
+		     ueber `tags` genau diesen Eintrag. Faellt der Tag weg, greift nur noch das
+		     Schematic - lautlos.
+
+		     Zutaten: Munition ist bewusst KEINE davon. Das Turret bringt seine 120 Schuss
+		     mit; wer sie zusaetzlich bezahlen muesste, zahlt zweimal fuer dasselbe. -->
+		<recipe name="thrownAgentTurretGun" count="1" craft_time="30" craft_area="workbench" tags="learnable,workbenchCrafting,thrownAgentTurretGun">
+			<ingredient name="resourceMechanicalParts" count="8"/>
+			<ingredient name="resourceElectricParts" count="6"/>
+			<ingredient name="resourceForgedSteel" count="10"/>
+			<ingredient name="resourceScrapPolymers" count="15"/>
+			<ingredient name="resourceSpring" count="3"/>
+		</recipe>
+
+		<!-- ============================================================
+		     DIE UEBRIGEN SIEBEN REZEPTE.
+		     ============================================================
+		     Aufbau und die beiden Fallen (`learnable` ist der Schalter, der Itemname als
+		     dritter Tag ist die Bruecke zum Perk-Weg) stehen beim Gun Turret oben.
+
+		     Preislogik: die Grundkosten sind bei allen aehnlich, der Unterschied steckt in
+		     der MUNITION, die mit eingebaut wird. Deshalb kostet die AP-Variante genau die
+		     Differenz zwischen HP- und AP-Geschossen extra, und das Sniper-Turret ist trotz
+		     nur 20 Schuss teuer, weil es AP verschiesst.
+		     ⚠ Munition ist bei den Basisvarianten bewusst KEINE Zutat: das Turret bringt
+		     seine Ladung mit, wer sie zusaetzlich bezahlt, zahlt zweimal fuer dasselbe. Die
+		     AP-Rezepte weichen davon ab, weil dort genau die Munition der Unterschied ist. -->
+
+		<recipe name="thrownAgentTurretGunAP" count="1" craft_time="30" craft_area="workbench" tags="learnable,workbenchCrafting,thrownAgentTurretGunAP">
+			<ingredient name="resourceMechanicalParts" count="8"/>
+			<ingredient name="resourceElectricParts" count="6"/>
+			<ingredient name="resourceForgedSteel" count="12"/>
+			<ingredient name="resourceScrapPolymers" count="15"/>
+			<ingredient name="resourceSpring" count="3"/>
+			<ingredient name="ammo9mmBulletAP" count="30"/>
+		</recipe>
+
+		<recipe name="thrownAgentTurretMG" count="1" craft_time="35" craft_area="workbench" tags="learnable,workbenchCrafting,thrownAgentTurretMG">
+			<ingredient name="resourceMechanicalParts" count="12"/>
+			<ingredient name="resourceElectricParts" count="8"/>
+			<ingredient name="resourceForgedSteel" count="15"/>
+			<ingredient name="resourceScrapPolymers" count="20"/>
+			<ingredient name="resourceSpring" count="4"/>
+		</recipe>
+
+		<recipe name="thrownAgentTurretMGAP" count="1" craft_time="35" craft_area="workbench" tags="learnable,workbenchCrafting,thrownAgentTurretMGAP">
+			<ingredient name="resourceMechanicalParts" count="12"/>
+			<ingredient name="resourceElectricParts" count="8"/>
+			<ingredient name="resourceForgedSteel" count="18"/>
+			<ingredient name="resourceScrapPolymers" count="20"/>
+			<ingredient name="resourceSpring" count="4"/>
+			<ingredient name="ammo762mmBulletAP" count="60"/>
+		</recipe>
+
+		<recipe name="thrownAgentTurretShotgun" count="1" craft_time="30" craft_area="workbench" tags="learnable,workbenchCrafting,thrownAgentTurretShotgun">
+			<ingredient name="resourceMechanicalParts" count="8"/>
+			<ingredient name="resourceElectricParts" count="6"/>
+			<ingredient name="resourceForgedSteel" count="14"/>
+			<ingredient name="resourceScrapPolymers" count="12"/>
+			<ingredient name="resourceSpring" count="3"/>
+		</recipe>
+
+		<recipe name="thrownAgentTurretSniper" count="1" craft_time="40" craft_area="workbench" tags="learnable,workbenchCrafting,thrownAgentTurretSniper">
+			<ingredient name="resourceMechanicalParts" count="10"/>
+			<ingredient name="resourceElectricParts" count="10"/>
+			<ingredient name="resourceForgedSteel" count="16"/>
+			<ingredient name="resourceScrapPolymers" count="15"/>
+			<ingredient name="resourceSpring" count="4"/>
+			<ingredient name="ammo762mmBulletAP" count="20"/>
+		</recipe>
+
+		<!-- Benzin statt Munition: der Tank IST die Ladung. Das ist die einzige Box, deren
+		     Zutatenliste den Munitionstyp direkt sichtbar macht. -->
+		<recipe name="thrownAgentTurretFlame" count="1" craft_time="35" craft_area="workbench" tags="learnable,workbenchCrafting,thrownAgentTurretFlame">
+			<ingredient name="resourceMechanicalParts" count="8"/>
+			<ingredient name="resourceElectricParts" count="6"/>
+			<ingredient name="resourceForgedSteel" count="12"/>
+			<ingredient name="resourceScrapPolymers" count="10"/>
+			<ingredient name="ammoGasCan" count="60"/>
+		</recipe>
+
+		<recipe name="thrownAgentTurretShock" count="1" craft_time="35" craft_area="workbench" tags="learnable,workbenchCrafting,thrownAgentTurretShock">
+			<ingredient name="resourceMechanicalParts" count="8"/>
+			<ingredient name="resourceElectricParts" count="14"/>
+			<ingredient name="resourceForgedSteel" count="12"/>
+			<ingredient name="resourceScrapPolymers" count="10"/>
+			<ingredient name="resourceAcid" count="2"/>
+		</recipe>
+
 	</append>
 </configs>

@@ -11,6 +11,16 @@
 	     TraderStageTemplate des Items, nicht dieser Eintrag. -->
 	<append xpath="/traders/trader_item_groups/trader_item_group[@name='schematicsModsCommon']">
 		<item name="thrownSeekerClusterSchematic"/>
+		<!-- Die sechs Turret-Baublaene, einer pro Turretsorte (nicht pro
+		     Munitionsvariante - der Bauplan schaltet HP und AP gemeinsam frei, sonst
+		     waere der Loot-Pool doppelt so voll fuer denselben Inhalt). Sie erben die
+		     Verteilung derselben T2-Gruppe wie der Seeker-Bauplan; Begruendung oben. -->
+		<item name="thrownAgentTurretGunSchematic"/>
+		<item name="thrownAgentTurretMGSchematic"/>
+		<item name="thrownAgentTurretShotgunSchematic"/>
+		<item name="thrownAgentTurretSniperSchematic"/>
+		<item name="thrownAgentTurretFlameSchematic"/>
+		<item name="thrownAgentTurretShockSchematic"/>
 	</append>
 
 </configs>

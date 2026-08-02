@@ -149,5 +149,537 @@
 			</effect_group>
 		</item>
 
+		<!-- ============================================================
+		     TURRET-KERN-ITEM - Gun. Taucht NIE im Inventar auf.
+		     ============================================================
+		     ⚠ WARUM ES DIESES ITEM UEBERHAUPT GIBT. Ein EntityTurret zieht Schaden,
+		     Feuerrate, Streuung und Reichweite nicht aus seiner entity_class, sondern aus
+		     `EntityTurret.OriginalItemValue` - und `ItemValue.ModifyValue` holt die Wirkung
+		     der Munition ueber
+		         ItemClass.Actions[0] as ItemActionRanged -> MagazineItemNames[SelectedAmmoTypeIndex]
+		         -> dessen ItemClass.Effects.ModifyValue(...)          (IL_003c..IL_00a5)
+		     Es braucht also zwingend ein `Action0` der Klasse `Ranged`. Die Wurfbox hat dort
+		     `ThrowAway`. Beides in einem Item ist unmoeglich, deshalb zwei.
+
+		     ⚠ `perkGunslinger` im Tags-Attribut ist der Perk-Hebel und wirkt in BEIDE
+		     Richtungen. `MiniTurretFireController.GetDamageEntity` ruft
+		         EffectManager.GetValue(EntityDamage, coreItem, base, OWNER, tags: coreItem.ItemTags)
+		     - der Besitzer geht mit hinein. Damit greifen die Gunslinger-Raenge des Spielers
+		     auf sein Turret. Bei 9mm ist das ein Bonus; bei 7.62 waere der passende Tag
+		     PFLICHT, weil `ammo762mmBulletHP/AP` ihren Grundschaden mit
+		     `tags="perkDeadEye,perkMachineGunner"` gaten - ohne Tag waere er schlicht 0.
+		     Beim Anlegen der weiteren Turrets also zuerst nachsehen, worauf die Munition
+		     gated ist, nicht raten.
+
+		     CreativeMode=None: das Item ist eine Datenhuelle, es soll nicht im Kreativmenue
+		     auftauchen und nicht craftbar sein. -->
+		<item name="agentTurretCoreGun">
+			<property name="CreativeMode" value="None"/>
+			<property name="Tags" value="turretRanged,weapon,ranged,perkGunslinger,agentTurretCore"/>
+			<property name="HoldType" value="67"/>
+			<property name="Material" value="MJunkTurretParts"/>
+			<!-- ⚠ PFLICHTFELD, auch fuer ein Item, das nie jemand sieht. `parseItem` bricht
+			     sonst mit `EXC Attribute 'Meshfile' missing on item '…'` ab - und zwar nicht
+			     nur fuer dieses Item: die GESAMTE items.xml faellt aus dem Ladevorgang, was
+			     danach jede andere Datei nachreisst, die eines ihrer Items nennt (hier
+			     recipes.xml mit "No item/block with name 'thrownAgentTurretGun' existing").
+			     Das Kern-Item existiert nur als Datentraeger fuer EntityTurret.OriginalItemValue
+			     und liegt nie im Inventar; das Modell ist reine Formsache und zeigt deshalb
+			     einfach auf das vanilla Turret. -->
+			<property name="Meshfile" value="@:Other/Items/Weapons/Ranged/JunkTurret/junkTurret_Prefab.prefab"/>
+			<!-- Faerbt das Turret-MODELL in der Welt (nicht das Icon): OnUpdateEntity liest
+			     diese Property vom Kern-Item und schiebt sie in UpdateLight. Kuehles Blau
+			     als Hausfarbe des Gun Turret. -->
+			<property name="TintColor" value="90,150,230"/>
+			<property name="Stacknumber" value="1"/>
+			<property name="EconomicValue" value="1"/>
+
+			<property class="Action0">
+				<property name="Class" value="Ranged"/>
+				<!-- Die Liste ist die Ammo-Tabelle des Turrets: die Wurfbox waehlt ueber
+				     `TurretAmmoIndex`, welcher Eintrag geladen ist. HP = 0, AP = 1.
+				     ⚠ REIHENFOLGE IST VERTRAG - wer hier etwas einschiebt, verschiebt die
+				     Indizes aller Boxen, ohne dass irgendetwas eine Warnung schreibt. -->
+				<property name="Magazine_items" value="ammo9mmBulletHP,ammo9mmBulletAP"/>
+				<property name="Sound_start" value="junkturret_fire"/>
+				<property name="Particles_muzzle_fire" value="gunfire_junkturret"/>
+			</property>
+
+			<effect_group name="agentTurretCoreGun" tiered="false">
+				<!-- Feuerrate. MUSS hier stehen: die 9mm-Munition setzt keinen
+				     RoundsPerMinute-Effekt (nur die Junk-Turret-Munition tut das), und
+				     `MiniTurretFireController.Update` liest Effekt 17 fuer `fireRateMax`. -->
+				<passive_effect name="RoundsPerMinute" operation="base_set" value="220" tags="perkGunslinger"/>
+				<!-- Magazin = die Munition, mit der das Turret geworfen wird. Der Wert wird
+				     doppelt gebraucht: `GetInitialMetadata` fuellt daraus den Vorrat, und
+				     `OnUpdateEntity` schaltet das Turret ueber `IsOn &= Meta > 0` ab, sobald
+				     es leer ist (Effekt 9 muss dafuer > 0 sein, IL_0180..IL_01c4).
+				     Die Box ueberschreibt die Stueckzahl trotzdem explizit - siehe dort. -->
+				<passive_effect name="MagazineSize" operation="base_set" value="120" tags="perkGunslinger"/>
+				<!-- DIE LEINE. Ohne diese Zeile schaltet sich das Turret ab, sobald der
+				     Werfer weiter als 10 m weg ist (Default von JunkTurretActiveRange,
+				     IL_0269). Fuer ein geworfenes Turret ist das absurd - man wirft es ja
+				     gerade, um sich bewegen zu koennen. -->
+				<passive_effect name="JunkTurretActiveRange" operation="base_set" value="35"/>
+			</effect_group>
+		</item>
+
+		<!-- ============================================================
+		     WURFBOX - Gun Turret (9mm HP).
+		     ============================================================
+		     Aufbau wie beim Cluster Seeker: eine gewoehnliche Wurfladung mit harmloser
+		     Explosion, die nur als Zustellereignis dient. `Patch_ExplosionServer_DeployTurret`
+		     sieht die Detonation, liest die fuenf Turret-Properties unten und baut auf.
+
+		     Die fuenf `Turret*`-Properties sind der ganze Vertrag zwischen XML und C#. Sie
+		     landen ueber `DynamicProperties.Add(XElement, bool)` in `ItemClass.Properties` -
+		     `ItemClassesFromXml.parseItem` hat keine Whitelist bekannter Namen (IL_0059).
+		     Ein weiteres Turret ist deshalb reines XML, ohne Rebuild. -->
+		<item name="thrownAgentTurretGun">
+			<!-- ⚠ `Action1` MUSS ausgeschlossen werden. Zusammen mit
+			     `FusePrimeOnActivate=false` gibt es damit ueberhaupt kein Scharfmachen mehr -
+			     sonst koennte man den Zuender per Rechtsklick IN DER HAND starten.
+			     `ItemClassTimeBomb.OnDroppedUpdate` prueft `Meta > 0` naemlich nur, wenn
+			     `mustPrime` gesetzt ist (`ldfld mustPrime; brfalse.s` ueberspringt die
+			     Pruefung). Dass ein ganzer `<property class="…">`-Block ausschliessbar ist,
+			     steht in `DynamicProperties.CopyFrom` (IL_005e..IL_006e).
+			     `PreviousTechItem` raus, weil wir keine Techstufe der Zeitladung sind. -->
+			<property name="Extends" value="thrownTimedCharge" param1="PreviousTechItem,Action1,SoundTick,SoundStick,UnlockedBy"/>
+			<property name="FusePrimeOnActivate" value="false"/>
+
+			<!-- ⚠⚠ DREI ERBSTUECKE DER ZEITLADUNG, DIE FUER EINE TURRETBOX FALSCH SIND.
+			     Die Vorlage wurde wegen ihrer HANDHALTUNG gewaehlt (HoldType 62), nicht wegen
+			     ihres Verhaltens - und das Verhalten unterscheidet sich an genau den Stellen,
+			     an denen es weh tut:
+
+			     (1) `ExplodeOnHit` fehlt bei thrownTimedCharge komplett. Sie ist eine
+			         ZEITladung: sie zuendet, wenn der Zuender ablaeuft, ganz gleich wo sie
+			         gerade liegt. Ohne diese Zeile wuerde die Box 6 Sekunden nach dem Wurf
+			         detonieren - unter Umstaenden noch in der Luft - und das Turret irgendwo
+			         aufbauen. Wir wollen den Bodenkontakt als Ausloeser.
+			     (2) `StickPercent=1` laesst sie an allem KLEBEN, auch an Waenden und an
+			         Zombies. Eine klebende Turretbox baut ihr Turret in der Wand auf. 0.
+			     (3) `SoundTick` (charge_beep) ist das Piepen des laufenden Zuenders. Es gibt
+			         hier keinen Zuender zum Mithoeren - die Box wird geworfen und baut auf.
+			         Steht oben in der Ausschlussliste, ebenso `SoundStick` (klebt ja nicht
+			         mehr) und `UnlockedBy` (die Zeitladung haengt an craftingExplosives, wir
+			         haengen an Gunslinger - eine falsche Beschriftung im Craftingmenue ist
+			         schlimmer als gar keine). -->
+			<property name="ExplodeOnHit" value="true"/>
+			<property name="StickPercent" value="0"/>
+
+			<!-- Eigene Tags. Geerbt kaemen `perkDemolitionsExpert,explosivesSkill,T3` mit -
+			     dann wuerde der Sprengstoff-Perk unsere (voellig harmlose) Zustellexplosion
+			     verstaerken und die Box im Sprengstoff-Zweig einsortiert. -->
+			<property name="Tags" value="ammo,weapon,agentTurretBox,roboticsSkill"/>
+			<property name="UnlockedBy" value="perkGunslinger"/>
+			<!-- HoldType 62 = Zeitladung: flach in der Handflaeche, so wie gewuenscht.
+			     ⚠ Bekannter Preis: der Animationssatz enthaelt die Bediengeste der
+			     Zeitladung. `FusePrimeOnActivate=false` nimmt die FUNKTION des Scharfmachens,
+			     nicht die Geste. Von den sechs werfenden HoldTypes (25/40/54/57/62/66) ist
+			     nur 40 (Stein) voellig gestenfrei - dort saehe die Box in der Hand aber aus
+			     wie ein Kieselstein. -->
+			<property name="HoldType" value="62"/>
+			<property name="DisplayType" value="ammoGrenadeContact"/>
+			<property name="Stacknumber" value="5"/>
+			<property name="EconomicValue" value="750"/>
+			<property name="Group" value="Ammo/Weapons,Robotics"/>
+			<!-- Bis das eigene Box-FBX da ist, bleibt das geerbte Zeitladungsmodell stehen.
+			     Ein `Meshfile` mit falschem Pfad waere schlechter als keins: `CloneModel`
+			     faellt bei nicht gefundenem Asset hart auf leather.fbx zurueck, ohne eine
+			     Zeile ins Log zu schreiben. -->
+
+			<!-- ===== Vertrag mit Patch_ExplosionServer_DeployTurret ===== -->
+			<property name="TurretEntity" value="agentTurretGun"/>
+			<property name="TurretCoreItem" value="agentTurretCoreGun"/>
+			<!-- Index in Magazine_items des Kern-Items: 0 = ammo9mmBulletHP. -->
+			<property name="TurretAmmoIndex" value="0"/>
+			<!-- Explizite Stueckzahl statt MagazineSize. Der Unterschied ist Absicht:
+			     `GetInitialMetadata` wuerde die MagazineSize-Boni des Besitzers mitrechnen,
+			     und `perkTurrets` gibt darauf `base_add level="1,5" value="10,50"` fuer alles
+			     mit dem Tag `perkTurrets`. Die Ladung einer WEGWERFBOX soll aber auf dem
+			     Ladentisch feststehen und nicht am Skillbaum haengen. -->
+			<property name="TurretAmmoCount" value="120"/>
+			<!-- Sekunden. Traeger ist der Buff `buffAgentTurretLifetime` - der ueberlebt
+			     einen Speicherstand, ein Zaehler in C# nicht. -->
+			<property name="TurretLifetime" value="90"/>
+
+			<!-- Zustellexplosion: keine Wirkung, nur ein kleiner Marker-Puff. Der Aufbau
+			     haengt am Ereignis, nicht am Schaden. -->
+			<property class="Explosion">
+				<property name="BlockDamage" value="0"/>
+				<property name="EntityDamage" value="1"/>
+				<property name="RadiusBlocks" value="0"/>
+				<property name="RadiusEntities" value="0.5"/>
+				<property name="BlastPower" value="0"/>
+				<property name="ParticleIndex" value="12"/>
+			</property>
+			<!-- FuseTime MUSS > 0 sein (0 => explodeAfterTicks=0 => Blindgaenger, der inert
+			     liegen bleibt). Der Zuender laeuft ab dem Wurf, also waere ein KURZER Zuender
+			     eine Luftdetonation bei weitem Wurf. Lange Zeit als reine Rueckfallsicherung,
+			     das echte Ausloesen macht das geerbte ExplodeOnHit beim Bodenkontakt. -->
+			<property name="FuseTime" value="6"/>
+		</item>
+
+		<!-- ============================================================
+		     DIE UEBRIGEN SIEBEN WURFBOXEN.
+		     ============================================================
+		     Alle erben von `thrownAgentTurretGun`, nicht noch einmal von `thrownTimedCharge`.
+		     Das ist Absicht: die drei heiklen Korrekturen an der Zeitladung (`ExplodeOnHit`
+		     ergaenzt, `StickPercent` auf 0, Tick-/Klebeton ausgeschlossen) stehen damit an
+		     genau EINER Stelle. Wer sie pro Box wiederholt, vergisst sie irgendwann in einer -
+		     und das Symptom waere eine Box, die an der Wand klebt und ihr Turret in die Luft
+		     baut, ohne jede Fehlermeldung.
+		     Zu ueberschreiben bleibt pro Box nur: der Vertrag mit dem C#-Deployer
+		     (`Turret*`), der Perk fuer die Craftinganzeige, und der Wert.
+
+		     ⚠ Die HP/AP-Paare teilen sich Kern-Item UND entity_class und unterscheiden sich
+		     ausschliesslich im `TurretAmmoIndex`. Der Index zeigt in die `Magazine_items`
+		     des Kern-Items - Reihenfolge dort ist Vertrag. -->
+
+		<!-- Gun, AP-Variante: gleiches Turret, haerteres Geschoss. -->
+		<item name="thrownAgentTurretGunAP">
+			<property name="Extends" value="thrownAgentTurretGun"/>
+			<property name="TurretAmmoIndex" value="1"/>
+			<property name="EconomicValue" value="900"/>
+		</item>
+
+		<!-- Machine Gun. -->
+		<item name="thrownAgentTurretMG">
+			<property name="Extends" value="thrownAgentTurretGun"/>
+			<property name="UnlockedBy" value="perkMachineGunner"/>
+			<property name="TurretEntity" value="agentTurretMG"/>
+			<property name="TurretCoreItem" value="agentTurretCoreMG"/>
+			<property name="TurretAmmoIndex" value="0"/>
+			<!-- 250 Schuss bei 500/min sind 30 s Dauerfeuer - die Lebenszeit ist hier fast
+			     nie die Grenze, die Munition schon. Genau umgekehrt zum Sniper. -->
+			<property name="TurretAmmoCount" value="250"/>
+			<property name="TurretLifetime" value="75"/>
+			<property name="EconomicValue" value="1100"/>
+		</item>
+
+		<item name="thrownAgentTurretMGAP">
+			<property name="Extends" value="thrownAgentTurretMG"/>
+			<property name="TurretAmmoIndex" value="1"/>
+			<property name="EconomicValue" value="1350"/>
+		</item>
+
+		<!-- Shotgun. -->
+		<item name="thrownAgentTurretShotgun">
+			<property name="Extends" value="thrownAgentTurretGun"/>
+			<property name="UnlockedBy" value="perkBoomstick"/>
+			<property name="TurretEntity" value="agentTurretShotgun"/>
+			<property name="TurretCoreItem" value="agentTurretCoreShotgun"/>
+			<property name="TurretAmmoIndex" value="0"/>
+			<!-- Nur 24 Schuss, aber 10 Strahlen pro Schuss aus der Munition. -->
+			<property name="TurretAmmoCount" value="24"/>
+			<property name="TurretLifetime" value="90"/>
+			<property name="EconomicValue" value="850"/>
+		</item>
+
+		<!-- Sniper. -->
+		<item name="thrownAgentTurretSniper">
+			<property name="Extends" value="thrownAgentTurretGun"/>
+			<property name="UnlockedBy" value="perkDeadEye"/>
+			<property name="TurretEntity" value="agentTurretSniper"/>
+			<property name="TurretCoreItem" value="agentTurretCoreSniper"/>
+			<property name="TurretAmmoIndex" value="0"/>
+			<!-- 20 Schuss bei gut einem pro Sekunde. Die lange Lebenszeit ist hier der
+			     Punkt: das Sniper-Turret ist eine Stellung, kein Feuerstoss. -->
+			<property name="TurretAmmoCount" value="20"/>
+			<property name="TurretLifetime" value="120"/>
+			<property name="EconomicValue" value="1200"/>
+		</item>
+
+		<!-- Flammenwerfer. -->
+		<item name="thrownAgentTurretFlame">
+			<property name="Extends" value="thrownAgentTurretGun"/>
+			<property name="UnlockedBy" value="perkTurrets"/>
+			<property name="TurretEntity" value="agentTurretFlame"/>
+			<property name="TurretCoreItem" value="agentTurretCoreFlame"/>
+			<property name="TurretAmmoIndex" value="0"/>
+			<!-- 300 bei 240/min = 75 s Brenndauer, also knapp ueber der Lebenszeit: hier
+			     laeuft normalerweise die Zeit ab, nicht der Tank. Das passt zu einem
+			     Flaechenverweigerungs-Werkzeug. -->
+			<property name="TurretAmmoCount" value="300"/>
+			<property name="TurretLifetime" value="60"/>
+			<property name="EconomicValue" value="1000"/>
+		</item>
+
+		<!-- Schock. -->
+		<item name="thrownAgentTurretShock">
+			<property name="Extends" value="thrownAgentTurretGun"/>
+			<property name="UnlockedBy" value="perkElectrocutioner"/>
+			<property name="TurretEntity" value="agentTurretShock"/>
+			<property name="TurretCoreItem" value="agentTurretCoreShock"/>
+			<property name="TurretAmmoIndex" value="0"/>
+			<property name="TurretAmmoCount" value="60"/>
+			<property name="TurretLifetime" value="75"/>
+			<property name="EconomicValue" value="950"/>
+		</item>
+
+		<!-- ============================================================
+		     EIGENE MUNITION fuer Flammenwerfer und Schock.
+		     ============================================================
+		     Warum nicht `ammoGasCan` direkt: das vanilla Item hat KEINE effect_group, also
+		     keinen `EntityDamage base_set`. Damit waere der Grundschaden 0, denn
+		     `GetDamageEntity` nimmt die entity_class-Basis (bei junkTurretGun: nicht gesetzt)
+		     und laesst sie durch die Effekte der geladenen Munition laufen. Diese beiden
+		     Items sind die Munitionsstatistik, nicht der Rohstoff - bezahlt wird beim Craften
+		     der Box mit Benzin bzw. Batterien.
+		     CreativeMode=None: reine Datentraeger, nie im Inventar. -->
+		<item name="ammoAgentFlameFuel">
+			<property name="CreativeMode" value="None"/>
+			<property name="Tags" value="ammo,gasoline"/>
+			<property name="HoldType" value="45"/>
+			<property name="Material" value="MFuelBarrelMetal"/>
+			<property name="Meshfile" value="@:Other/Items/Misc/sackPrefab.prefab"/>
+			<property name="Stacknumber" value="1000"/>
+			<property name="EconomicValue" value="1"/>
+
+			<effect_group name="ammoAgentFlameFuel" tiered="false">
+				<!-- Klein pro Treffer, weil die Wirkung im Brandbuff steckt: bei 3 Strahlen
+				     und 240 Schuss/Minute sind das 12 Treffer pro Sekunde auf ein Ziel im
+				     Strahl. Wer hier hochdreht, macht aus dem Kontrollwerkzeug versehentlich
+				     das staerkste Schadensturret der Reihe. -->
+				<passive_effect name="EntityDamage" operation="base_set" value="3" tags="perkTurrets"/>
+				<passive_effect name="BlockDamage" operation="base_set" value="0" tags="perkTurrets"/>
+				<!-- Gegen Fassexplosionen wie bei jeder vanilla Munition. -->
+				<passive_effect name="BlockDamage" operation="base_add" value="100" tags="barrelExplosive"/>
+				<passive_effect name="MaxRange" operation="base_set" value="6" tags="perkTurrets"/>
+				<passive_effect name="DamageFalloffRange" operation="base_set" value="5" tags="perkTurrets"/>
+			</effect_group>
+		</item>
+
+		<item name="ammoAgentShockCell">
+			<property name="CreativeMode" value="None"/>
+			<property name="Tags" value="ammo"/>
+			<property name="HoldType" value="45"/>
+			<property name="Material" value="Mmetal"/>
+			<property name="Meshfile" value="@:Other/Items/Misc/sackPrefab.prefab"/>
+			<property name="Stacknumber" value="1000"/>
+			<property name="EconomicValue" value="1"/>
+
+			<effect_group name="ammoAgentShockCell" tiered="false">
+				<!-- Bewusst niedrig: das Schockturret kauft Zeit, es toetet nicht. Der Wert
+				     liegt unter dem einer einzelnen 9mm-Kugel. -->
+				<passive_effect name="EntityDamage" operation="base_set" value="6" tags="perkElectrocutioner"/>
+				<passive_effect name="BlockDamage" operation="base_set" value="0" tags="perkElectrocutioner"/>
+				<passive_effect name="BlockDamage" operation="base_add" value="100" tags="barrelExplosive"/>
+				<passive_effect name="MaxRange" operation="base_set" value="14" tags="perkElectrocutioner"/>
+				<passive_effect name="DamageFalloffRange" operation="base_set" value="12" tags="perkElectrocutioner"/>
+			</effect_group>
+		</item>
+
+		<!-- ============================================================
+		     KERN-ITEMS der uebrigen fuenf Turrets.
+		     ============================================================
+		     Bauart, Begruendung fuer das zweite Item und die Bedeutung des Perk-Tags stehen
+		     vollstaendig bei `agentTurretCoreGun` weiter oben. Hier nur die Unterschiede.
+
+		     ⚠ Bei 7.62 ist der Perk-Tag PFLICHT, nicht Kosmetik: `ammo762mmBulletHP` und
+		     `-AP` setzen ihren `EntityDamage base_set` mit
+		     `tags="perkDeadEye,perkMachineGunner"`. Ein Kern-Item ohne einen dieser beiden
+		     Tags bekommt Grundschaden 0 - und zwar lautlos, das Turret schiesst dann
+		     wirkungslos. Bei 9mm und 12ga sind die Munitionseffekte ungetaggt, dort ist der
+		     Tag reiner Skalierungsgewinn. -->
+		<item name="agentTurretCoreMG">
+			<property name="CreativeMode" value="None"/>
+			<property name="Tags" value="turretRanged,weapon,ranged,perkMachineGunner,agentTurretCore"/>
+			<property name="HoldType" value="67"/>
+			<property name="Material" value="MJunkTurretParts"/>
+			<property name="Meshfile" value="@:Other/Items/Weapons/Ranged/JunkTurret/junkTurret_Prefab.prefab"/>
+			<property name="TintColor" value="215,140,60"/>
+			<property name="Stacknumber" value="1"/>
+			<property name="EconomicValue" value="1"/>
+			<property class="Action0">
+				<property name="Class" value="Ranged"/>
+				<property name="Magazine_items" value="ammo762mmBulletHP,ammo762mmBulletAP"/>
+			</property>
+			<effect_group name="agentTurretCoreMG" tiered="false">
+				<passive_effect name="RoundsPerMinute" operation="base_set" value="500" tags="perkMachineGunner"/>
+				<passive_effect name="MagazineSize" operation="base_set" value="250" tags="perkMachineGunner"/>
+				<passive_effect name="JunkTurretActiveRange" operation="base_set" value="35"/>
+			</effect_group>
+		</item>
+
+		<item name="agentTurretCoreShotgun">
+			<property name="CreativeMode" value="None"/>
+			<property name="Tags" value="turretRanged,weapon,ranged,perkBoomstick,agentTurretCore"/>
+			<property name="HoldType" value="67"/>
+			<property name="Material" value="MJunkTurretParts"/>
+			<property name="Meshfile" value="@:Other/Items/Weapons/Ranged/JunkTurret/junkTurret_Prefab.prefab"/>
+			<property name="TintColor" value="200,70,60"/>
+			<property name="Stacknumber" value="1"/>
+			<property name="EconomicValue" value="1"/>
+			<property class="Action0">
+				<property name="Class" value="Ranged"/>
+				<!-- Nur eine Sorte: Slugs waeren beim Turret sinnlos, weil die Schrotgarbe
+				     (RoundRayCount 10 aus der Munition) genau die Staerke dieses Turrets ist. -->
+				<property name="Magazine_items" value="ammoShotgunShell"/>
+			</property>
+			<effect_group name="agentTurretCoreShotgun" tiered="false">
+				<passive_effect name="RoundsPerMinute" operation="base_set" value="70" tags="perkBoomstick"/>
+				<passive_effect name="MagazineSize" operation="base_set" value="24" tags="perkBoomstick"/>
+				<passive_effect name="JunkTurretActiveRange" operation="base_set" value="35"/>
+			</effect_group>
+		</item>
+
+		<item name="agentTurretCoreSniper">
+			<property name="CreativeMode" value="None"/>
+			<property name="Tags" value="turretRanged,weapon,ranged,perkDeadEye,agentTurretCore"/>
+			<property name="HoldType" value="67"/>
+			<property name="Material" value="MJunkTurretParts"/>
+			<property name="Meshfile" value="@:Other/Items/Weapons/Ranged/JunkTurret/junkTurret_Prefab.prefab"/>
+			<property name="TintColor" value="120,200,140"/>
+			<property name="Stacknumber" value="1"/>
+			<property name="EconomicValue" value="1"/>
+			<property class="Action0">
+				<property name="Class" value="Ranged"/>
+				<property name="Magazine_items" value="ammo762mmBulletAP"/>
+			</property>
+			<effect_group name="agentTurretCoreSniper" tiered="false">
+				<!-- Die Kadenz INNERHALB einer Salve. Weil `BurstRoundCount=1` an der
+				     entity_class steht, ist jede Salve ein Schuss, und den Rhythmus macht
+				     `CooldownTime` (1.6 s) - effektiv also gut ein Schuss pro Sekunde. -->
+				<passive_effect name="RoundsPerMinute" operation="base_set" value="120" tags="perkDeadEye"/>
+				<passive_effect name="MagazineSize" operation="base_set" value="20" tags="perkDeadEye"/>
+				<!-- Weiter als die anderen: ein Sniper-Turret, das man auf 35 m Leine haelt,
+				     kann seine 45 m Reichweite nie nutzen. -->
+				<passive_effect name="JunkTurretActiveRange" operation="base_set" value="55"/>
+			</effect_group>
+		</item>
+
+		<item name="agentTurretCoreFlame">
+			<property name="CreativeMode" value="None"/>
+			<property name="Tags" value="turretRanged,weapon,ranged,perkTurrets,agentTurretCore"/>
+			<property name="HoldType" value="67"/>
+			<property name="Material" value="MJunkTurretParts"/>
+			<property name="Meshfile" value="@:Other/Items/Weapons/Ranged/JunkTurret/junkTurret_Prefab.prefab"/>
+			<property name="TintColor" value="230,120,40"/>
+			<property name="Stacknumber" value="1"/>
+			<property name="EconomicValue" value="1"/>
+			<property class="Action0">
+				<property name="Class" value="Ranged"/>
+				<property name="Magazine_items" value="ammoAgentFlameFuel"/>
+			</property>
+			<effect_group name="agentTurretCoreFlame" tiered="false">
+				<!-- 240/min = 4 Stoesse pro Sekunde. Bewusst niedriger als ein echter
+				     Flammenwerfer, damit Einzelstoss-Partikel und -Ton noch lesbar bleiben -
+				     siehe den Warnblock bei `agentTurretFlame` in entityclasses.xml. -->
+				<passive_effect name="RoundsPerMinute" operation="base_set" value="240" tags="perkTurrets"/>
+				<passive_effect name="MagazineSize" operation="base_set" value="300" tags="perkTurrets"/>
+				<passive_effect name="JunkTurretActiveRange" operation="base_set" value="35"/>
+			</effect_group>
+		</item>
+
+		<item name="agentTurretCoreShock">
+			<property name="CreativeMode" value="None"/>
+			<property name="Tags" value="turretRanged,weapon,ranged,perkElectrocutioner,agentTurretCore"/>
+			<property name="HoldType" value="67"/>
+			<property name="Material" value="MJunkTurretParts"/>
+			<property name="Meshfile" value="@:Other/Items/Weapons/Ranged/JunkTurret/junkTurret_Prefab.prefab"/>
+			<property name="TintColor" value="120,180,240"/>
+			<property name="Stacknumber" value="1"/>
+			<property name="EconomicValue" value="1"/>
+			<property class="Action0">
+				<property name="Class" value="Ranged"/>
+				<property name="Magazine_items" value="ammoAgentShockCell"/>
+			</property>
+			<effect_group name="agentTurretCoreShock" tiered="false">
+				<passive_effect name="RoundsPerMinute" operation="base_set" value="90" tags="perkElectrocutioner"/>
+				<passive_effect name="MagazineSize" operation="base_set" value="60" tags="perkElectrocutioner"/>
+				<passive_effect name="JunkTurretActiveRange" operation="base_set" value="35"/>
+			</effect_group>
+		</item>
+
+		<!-- Zweiter Freischaltweg fuer das Gun Turret, unabhaengig vom Gunslinger-Rang.
+		     Er existiert aus demselben Grund wie beim Seeker: wer den Mod in ein laufendes
+		     Spiel nimmt, hat seinen Skillbaum unter Umstaenden ganz woanders investiert und
+		     kaeme sonst nie an das Rezept. Der Mechanismus ist Weg (a) aus `Recipe.IsUnlocked`:
+		     eine CVar, die EXAKT SO HEISST WIE DAS REZEPT, auf > 0 setzen. -->
+		<item name="thrownAgentTurretGunSchematic">
+			<property name="Extends" value="schematicNoQualityMaster"/>
+			<property name="CreativeMode" value="Player"/>
+			<!-- MUSS gesetzt werden: `schematicMaster` vererbt DescriptionKey=
+			     "schematicGeneralGroupDesc", die Namenskonvention <item>Desc greift also
+			     nicht von allein. -->
+			<property name="DescriptionKey" value="thrownAgentTurretGunSchematicDesc"/>
+			<!-- Reine UI-Angabe fuers Buchtooltip - schaltet selbst nichts frei. -->
+			<property name="Unlocks" value="thrownAgentTurretGun"/>
+
+			<!-- ⚠ EIN Schematic schaltet BEIDE Munitionsvarianten seiner Familie frei.
+			     Die CVar muss dafuer exakt so heissen wie das jeweilige REZEPT (nicht wie
+			     das Item - hier zufaellig identisch). Zwei Rezepte, also zwei CVars; ein
+			     Bauplan pro Turretsorte statt pro Variante haelt den Loot-Pool klein. -->
+			<effect_group tiered="false">
+				<triggered_effect trigger="onSelfPrimaryActionEnd" action="ModifyCVar"
+					cvar="thrownAgentTurretGun" operation="set" value="1"/>
+				<triggered_effect trigger="onSelfPrimaryActionEnd" action="ModifyCVar"
+					cvar="thrownAgentTurretGunAP" operation="set" value="1"/>
+				<triggered_effect trigger="onSelfPrimaryActionEnd" action="GiveExp" exp="50"/>
+			</effect_group>
+		</item>
+
+		<!-- Die uebrigen fuenf Baublaene. Aufbau identisch zum Gun-Schematic darueber;
+		     `Extends` auf das eigene Schematic haelt DescriptionKey-Pflicht und
+		     schematicNoQualityMaster an einer Stelle. -->
+		<item name="thrownAgentTurretMGSchematic">
+			<property name="Extends" value="thrownAgentTurretGunSchematic"/>
+			<property name="DescriptionKey" value="thrownAgentTurretMGSchematicDesc"/>
+			<property name="Unlocks" value="thrownAgentTurretMG"/>
+			<effect_group tiered="false">
+				<triggered_effect trigger="onSelfPrimaryActionEnd" action="ModifyCVar"
+					cvar="thrownAgentTurretMG" operation="set" value="1"/>
+				<triggered_effect trigger="onSelfPrimaryActionEnd" action="ModifyCVar"
+					cvar="thrownAgentTurretMGAP" operation="set" value="1"/>
+				<triggered_effect trigger="onSelfPrimaryActionEnd" action="GiveExp" exp="50"/>
+			</effect_group>
+		</item>
+
+		<item name="thrownAgentTurretShotgunSchematic">
+			<property name="Extends" value="thrownAgentTurretGunSchematic"/>
+			<property name="DescriptionKey" value="thrownAgentTurretShotgunSchematicDesc"/>
+			<property name="Unlocks" value="thrownAgentTurretShotgun"/>
+			<effect_group tiered="false">
+				<triggered_effect trigger="onSelfPrimaryActionEnd" action="ModifyCVar"
+					cvar="thrownAgentTurretShotgun" operation="set" value="1"/>
+				<triggered_effect trigger="onSelfPrimaryActionEnd" action="GiveExp" exp="50"/>
+			</effect_group>
+		</item>
+
+		<item name="thrownAgentTurretSniperSchematic">
+			<property name="Extends" value="thrownAgentTurretGunSchematic"/>
+			<property name="DescriptionKey" value="thrownAgentTurretSniperSchematicDesc"/>
+			<property name="Unlocks" value="thrownAgentTurretSniper"/>
+			<effect_group tiered="false">
+				<triggered_effect trigger="onSelfPrimaryActionEnd" action="ModifyCVar"
+					cvar="thrownAgentTurretSniper" operation="set" value="1"/>
+				<triggered_effect trigger="onSelfPrimaryActionEnd" action="GiveExp" exp="50"/>
+			</effect_group>
+		</item>
+
+		<item name="thrownAgentTurretFlameSchematic">
+			<property name="Extends" value="thrownAgentTurretGunSchematic"/>
+			<property name="DescriptionKey" value="thrownAgentTurretFlameSchematicDesc"/>
+			<property name="Unlocks" value="thrownAgentTurretFlame"/>
+			<effect_group tiered="false">
+				<triggered_effect trigger="onSelfPrimaryActionEnd" action="ModifyCVar"
+					cvar="thrownAgentTurretFlame" operation="set" value="1"/>
+				<triggered_effect trigger="onSelfPrimaryActionEnd" action="GiveExp" exp="50"/>
+			</effect_group>
+		</item>
+
+		<item name="thrownAgentTurretShockSchematic">
+			<property name="Extends" value="thrownAgentTurretGunSchematic"/>
+			<property name="DescriptionKey" value="thrownAgentTurretShockSchematicDesc"/>
+			<property name="Unlocks" value="thrownAgentTurretShock"/>
+			<effect_group tiered="false">
+				<triggered_effect trigger="onSelfPrimaryActionEnd" action="ModifyCVar"
+					cvar="thrownAgentTurretShock" operation="set" value="1"/>
+				<triggered_effect trigger="onSelfPrimaryActionEnd" action="GiveExp" exp="50"/>
+			</effect_group>
+		</item>
+
 	</append>
 </configs>

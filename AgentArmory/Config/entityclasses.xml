@@ -209,6 +209,205 @@
 				<passive_effect name="ExplosionIncomingDamage" operation="perc_add" value="-1.0"/>
 			</effect_group>
 		</entity_class>
+
+		<!-- ============================================================
+		     AGENT TURRET - Gun. Erstes Modul der Turret-Familie.
+		     ============================================================
+		     `extends="junkTurretGun"` ist hier keine Bequemlichkeit, sondern die einzige
+		     billige Loesung: `EntityTurret` erwartet im Prefab einen Knoten "Muzzle" sowie
+		     die MonoBehaviours `AutoTurretYawLerp`, `AutoTurretPitchLerp`, Laser und Cone
+		     (`MiniTurretFireController.Init`, `EntityTurret.InitTurret`). Ein eigenes FBX
+		     muesste die alle nachbauen. Das vanilla junkTurret-Prefab bringt sie mit, und
+		     die optische Unterscheidung der Turretsorten kostet uns trotzdem nichts:
+		     `EntityTurret.OnUpdateEntity` liest `TintColor` aus dem KERN-ITEM
+		     (IL_00d2..IL_0159, ueber `Block.PropTintColor` -> `UpdateLight.SetTintColorForItem`).
+		     Fuenf Farben, ein Modell, null Art-Assets.
+
+		     ⚠ `agentTurret` im Tags-Attribut ist FUNKTIONAL, nicht dekorativ. Daran erkennen
+		     `Patch_TurretRuntime` und `Patch_TurretNoPickup` unsere Turrets - beide Patches
+		     laufen ueber JEDES EntityTurret im Spiel, auch die von vanilla und von anderen
+		     Mods. Faellt der Tag weg, verhaelt sich unser Turret wie ein Junk Turret:
+		     aufsammelbar, ohne Lebenszeit, und vom Aktivzaehler abgeschaltet.
+
+		     ⚠ MaxOwnerDistance steht bewusst NICHT hier. Vanilla setzt es an junkTurretGun,
+		     aber die Zeichenkette "MaxOwnerDistance" kommt in ganz Assembly-CSharp in keiner
+		     einzigen Instruktion vor (Cecil-Suche ueber alle Operanden) - das Feld
+		     `EntityTurret.maxOwnerDistance` wird ausschliesslich aus dem passive_effect
+		     `JunkTurretActiveRange` gefuellt (IL_0260..IL_028c, Default 10). Die Leine sitzt
+		     deshalb am Kern-Item, nicht hier. Wer sie hier einstellt, aendert nichts. -->
+		<entity_class name="agentTurretGun" extends="junkTurretGun">
+			<property name="Tags" value="turret,turretRanged,deployed,noMedBuffs,agentTurret"/>
+
+			<!-- Weiter als vanilla (15), aber unter der Leine von 35 m am Kern-Item: die
+			     Reichweite soll das Turret begrenzen, nicht der Abstand zum Werfer.
+			     Dieser Wert ist die BASIS fuer `MaxRange` (PassiveEffects 11) - die
+			     9mm-Munition setzt selbst keinen MaxRange-Effekt, anders als die
+			     Junk-Turret-Munition, also bleibt er hier stehen. -->
+			<property name="MaxDistance" value="20"/>
+			<!-- 170 statt 90: ein geworfenes Turret kann sich seine Ausrichtung nicht
+			     aussuchen, es landet wie es landet. Ein enger Schwenkbereich waere reines
+			     Wurfglueck. 170 ist der Wert des Junk Sledge und respektiert die vanilla-
+			     Warnung "Keep under 180". -->
+			<property name="YawRange" value="170"/>
+			<property name="TurnSpeed" value="30"/>
+
+			<!-- Streuung. Basis fuer SpreadDegreesVertical/Horizontal (31/32); die
+			     9mm-Munition liefert keine eigenen Werte, also gilt dieser. -->
+			<property name="RaySpread" value="3"/>
+
+			<!-- Schneller wach als vanilla (0.5): das Turret wird mitten in den Kampf
+			     geworfen, nicht vorher aufgebaut. Eine halbe Sekunde Anlauf ist dann
+			     verlorene Zeit. -->
+			<property name="WakeUpTime" value="0.25"/>
+
+			<!-- ⚠ SCHUSSTON EXPLIZIT, obwohl `junkturret_fire` von junkTurretGun geerbt
+			     wuerde. Grund: im ersten Spieltest (2026-08-02) hat das Turret nachweislich
+			     gefeuert - das Log zeigt "Turret 43912 abgebaut: Magazin leer", also 120
+			     verbrauchte Schuss - war dabei aber stumm. Der vanilla-Pfad ist per IL
+			     geprueft und intakt:
+			       Fire() -> ParticleEffect(…, fireSound, …) -> FireControllerUtils.SpawnParticleEffect
+			       -> GameManager.SpawnParticleEffectClient -> ParticleEffect.SpawnParticleEffect
+			       -> PlaySoundInClient -> Audio.Manager.Play
+			     Der Ton wird dort VOR jeder Partikelaufloesung gespielt (IL_0000..IL_004e),
+			     ein fehlendes Partikel kann ihn also nicht schlucken, und der ganze Block
+			     liegt HINTER der Strahlenschleife, haengt also nicht am Treffer.
+			     Die Ursache ist damit NICHT gefunden. Explizit gesetzt wird der Ton trotzdem,
+			     aus zwei Gruenden: er faellt ohnehin pro Turretsorte anders aus (das ist der
+			     Sinn der Uebung), und es nimmt die Vererbung als Fehlerquelle aus der
+			     Rechnung. `Patch_TurretFireProbe` protokolliert beim naechsten Spieltest,
+			     was zur Laufzeit wirklich in fireSound und muzzleFireParticle steht. -->
+			<property name="FireSound" value="Pistol_Fire"/>
+			<property name="ParticlesMuzzleFire" value="gunfire_pistol"/>
+		</entity_class>
+
+		<!-- ============================================================
+		     AGENT TURRET - Machine Gun. Dauerfeuer, frisst sich schnell leer.
+		     ============================================================
+		     Aufbau, Tag-Pflicht und die Begruendung fuers Erben stehen beim Gun Turret oben;
+		     hier nur noch, was sich unterscheidet. -->
+		<entity_class name="agentTurretMG" extends="junkTurretGun">
+			<property name="Tags" value="turret,turretRanged,deployed,noMedBuffs,agentTurret"/>
+			<property name="MaxDistance" value="22"/>
+			<property name="YawRange" value="170"/>
+			<property name="TurnSpeed" value="26"/>
+			<!-- Deutlich streuender als das Gun Turret: das ist der Preis fuers Dauerfeuer
+			     und der Grund, warum das MG-Turret auf Distanz schlechter ist als das
+			     Sniper-Turret, obwohl beide 7.62 verschiessen. -->
+			<property name="RaySpread" value="7"/>
+			<property name="WakeUpTime" value="0.25"/>
+			<property name="FireSound" value="ak47_fire"/>
+			<property name="ParticlesMuzzleFire" value="gunfire_MG_AK47"/>
+		</entity_class>
+
+		<!-- ============================================================
+		     AGENT TURRET - Shotgun. Tuersteher auf kurze Distanz.
+		     ============================================================ -->
+		<entity_class name="agentTurretShotgun" extends="junkTurretGun">
+			<property name="Tags" value="turret,turretRanged,deployed,noMedBuffs,agentTurret"/>
+			<!-- 9 m. Die Munition begrenzt zusaetzlich: `ammoShotgunShell` setzt
+			     `MaxRange base_set 10` und `DamageFalloffRange 4` - das Turret waere also
+			     auch mit groesserem MaxDistance nicht weitreichender, es wuerde nur auf
+			     Ziele schwenken, die es nicht mehr erreicht. -->
+			<property name="MaxDistance" value="9"/>
+			<!-- Weiter Schwenkbereich, weil es auf kurze Distanz einen Korridor decken soll. -->
+			<property name="YawRange" value="175"/>
+			<property name="TurnSpeed" value="34"/>
+			<property name="RaySpread" value="4"/>
+			<property name="WakeUpTime" value="0.2"/>
+			<!-- ⚠ RayCount bleibt bei 1: die Schrotgarbe kommt NICHT von hier, sondern aus
+			     `RoundRayCount base_set 10` in `ammoShotgunShell`. `Fire` ueberschreibt den
+			     XML-Wert mit PassiveEffect 16, sobald die Munition einen setzt. Wer hier
+			     zusaetzlich hochdreht, aendert nichts. -->
+			<property name="FireSound" value="pump_shotgun_fire"/>
+			<property name="ParticlesMuzzleFire" value="gunfire_SG_pump"/>
+		</entity_class>
+
+		<!-- ============================================================
+		     AGENT TURRET - Sniper. Einzelschuss auf grosse Distanz.
+		     ============================================================ -->
+		<entity_class name="agentTurretSniper" extends="junkTurretGun">
+			<property name="Tags" value="turret,turretRanged,deployed,noMedBuffs,agentTurret"/>
+			<property name="MaxDistance" value="45"/>
+			<property name="YawRange" value="150"/>
+			<!-- Bewusst LANGSAM im Schwenk: das Sniper-Turret ist gegen anrueckende Ziele
+			     stark und gegen bereits nahe schwach. Ohne diesen Nachteil waere es die
+			     dominante Wahl auf jeder Distanz. -->
+			<property name="TurnSpeed" value="14"/>
+			<property name="RaySpread" value="0.5"/>
+			<property name="WakeUpTime" value="0.4"/>
+			<!-- Einzelschuss mit Nachladepause statt Kadenz: BurstRoundCount 1 plus
+			     CooldownTime gibt den charakteristischen Rhythmus. Die RoundsPerMinute am
+			     Kern-Item bleibt trotzdem noetig - sie bestimmt den Abstand INNERHALB einer
+			     Salve, CooldownTime den Abstand zwischen den Salven. -->
+			<property name="BurstRoundCount" value="1"/>
+			<property name="CooldownTime" value="1.6"/>
+			<property name="FireSound" value="sniperrifle_fire"/>
+			<property name="ParticlesMuzzleFire" value="gunfire_rifle_sniper"/>
+		</entity_class>
+
+		<!-- ============================================================
+		     AGENT TURRET - Flammenwerfer. Kein Schaden aus der Kugel, sondern aus dem Buff.
+		     ============================================================
+		     ⚠ DAS IST DER EINZIGE TURRET-TYP MIT EINEM OFFENEN OPTIK-/AUDIORISIKO.
+		     `ParticlesMuzzleFire` wird PRO SCHUSS gespawnt (`FireControllerUtils.
+		     SpawnParticleEffect` am Ende von `Fire`), und `FireSound` haengt am selben
+		     Aufruf. Ein Dauerstrahl ist das nicht. Bei 240 Schuss/Minute (4/s) ergibt das
+		     ein Stossfeuer mit vier Flammenstoessen pro Sekunde - das KANN gut aussehen und
+		     klingen oder wie ein Stroboskop wirken. Das entscheidet ein Blick, nicht eine
+		     Ueberlegung. Wenn es stoert, ist die Loesung ein Loop-Partikel plus
+		     `flametrap_lp` als Schleife, beides in C# an- und abgeschaltet, solange das
+		     Turret feuert - dann gehoeren `ParticlesMuzzleFire` und `FireSound` hier
+		     auf leer.
+		     Die Kadenz ist bewusst niedriger als bei einem echten Flammenwerfer gewaehlt,
+		     genau damit die Einzelstoesse noch als solche lesbar sind. -->
+		<entity_class name="agentTurretFlame" extends="junkTurretGun">
+			<property name="Tags" value="turret,turretRanged,deployed,noMedBuffs,agentTurret"/>
+			<property name="MaxDistance" value="6"/>
+			<property name="YawRange" value="175"/>
+			<property name="TurnSpeed" value="40"/>
+			<!-- Breite Garbe: eine Flamme trifft eine Gruppe, nicht ein Ziel. -->
+			<property name="RaySpread" value="9"/>
+			<property name="RayCount" value="3"/>
+			<property name="WakeUpTime" value="0.2"/>
+			<!-- ⚠ HIER LIEGT DIE EIGENTLICHE WIRKUNG. `Buff` ist eine Kommaliste (Leerzeichen
+			     werden entfernt) und geht als `buffActions` in `ItemActionAttack.Hit`, wo sie
+			     auf die getroffene Entity angewandt wird (IL_0dd6..IL_0e45). Die Trefferchance
+			     kommt aus PassiveEffect 195 mit Basis 1.0, also immer.
+			     Beide Buffs sind vanilla und werden vom `flamethrowerTrap` genauso benutzt -
+			     kein eigener Buff noetig, keine eigene Balance-Baustelle. -->
+			<property name="Buff" value="buffBurningHazardPlayer,buffHazard_Slow"/>
+			<property name="FireSound" value="flametrap_start"/>
+			<property name="ParticlesMuzzleFire" value="flame_hazard"/>
+		</entity_class>
+
+		<!-- ============================================================
+		     AGENT TURRET - Schock. Crowd Control statt Schaden.
+		     ============================================================
+		     Derselbe Hebel wie beim Flammenwerfer, nur mit Elektrizitaet: der Schaden ist
+		     bewusst klein, die Wirkung steckt im Buff. Damit ist es das Turret, das man
+		     wirft, um Zeit zu kaufen, nicht um zu toeten. -->
+		<entity_class name="agentTurretShock" extends="junkTurretGun">
+			<property name="Tags" value="turret,turretRanged,deployed,noMedBuffs,agentTurret"/>
+			<property name="MaxDistance" value="14"/>
+			<property name="YawRange" value="175"/>
+			<property name="TurnSpeed" value="32"/>
+			<property name="RaySpread" value="2"/>
+			<property name="WakeUpTime" value="0.2"/>
+			<!-- Eigener Schockbuff statt des vanilla `buffShocked`. Grund: dessen Schaden
+			     wird ueber `ItemHasTags tags="stunBaton"` und die CVar `_droneStunDamage`
+			     entschieden (vanilla buffs.xml ab Zeile 6574). Wer ihn direkt benutzt,
+			     laesst fremden Kontext bestimmen, wie hart das eigene Turret zuschlaegt.
+			     `buffHazard_Slow` bleibt vanilla, das ist ein reiner Verlangsamer. -->
+			<property name="Buff" value="buffAgentShock,buffHazard_Slow"/>
+			<property name="FireSound" value="drone_attack_stun"/>
+			<!-- Es gibt in vanilla KEIN Elektro-Muendungsfeuer: die vollstaendige Liste der in den
+			     Konfigurationsdateien referenzierten Partikelnamen enthaelt nur Waffen-, Feuer-,
+			     Baum- und Fahrzeugeffekte. Deshalb der neutrale Maschinen-Flash des Junk Turret.
+			     ⚠ NICHT auf leer setzen: in `Fire` liegt der GESAMTE Block aus Partikel UND
+			     Schusston hinter `if (!IsNullOrEmpty(muzzleFireParticle))` (IL_0503..IL_050e).
+			     Ein leerer Partikelname macht das Turret also auch stumm. -->
+			<property name="ParticlesMuzzleFire" value="gunfire_junkturret"/>
+		</entity_class>
 	</append>
 
 </configs>

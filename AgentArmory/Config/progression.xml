@@ -41,6 +41,65 @@
 	</append>
 
 	<!-- ============================================================
+	     TURRETS: FREISCHALTUNG UEBER DEN PASSENDEN WAFFEN-PERK.
+	     ============================================================
+	     Jede Turretsorte haengt an dem Perk, dessen Munition sie verschiesst - das Gun Turret
+	     also am Gunslinger. Derselbe Tag am Kern-Item sorgt zugleich dafuer, dass die Raenge
+	     dieses Perks den Schaden des Turrets erhoehen (`GetDamageEntity` reicht den Besitzer
+	     in `EffectManager.GetValue`), Freischaltung und Skalierung kommen also aus einer Quelle.
+
+	     ⚠ VANILLA MACHT DAS NIRGENDS. Jedes einzelne `RecipeTagUnlocked` im Spiel steht in
+	     einem `crafting_skill`, keines in einem `<perk>`. Dass es trotzdem traegt, ist per IL
+	     geprueft und keine Analogie: `Recipe.IsUnlocked` ruft
+	         EffectManager.GetValue(RecipeTagUnlocked, …, basis: GetCVar(rezeptname), tags: recipe.tags)
+	     und landet ueber den Spieler in `Progression.ModifyValue`. Das iteriert
+	     `passiveEffects[effect]` - einen flachen Index ueber ALLE ProgressionValues, die
+	     diesen Effekt deklarieren, OHNE Filter auf die Art der Progression (IL_0012..IL_0055).
+	     Attribute, Perks und Crafting-Skills liegen dort gleichberechtigt nebeneinander.
+
+	     RANG 2 statt 1: Rang 1 hat fast jeder Agility-Build sofort, das waere kein Gate.
+	     Rang 2 verlangt Agility 3 und faellt damit in die Phase, in der 9mm-Munition
+	     ohnehin reichlich vorhanden ist.
+
+	     Konfliktrisiko wie beim Seeker: `<append>` ist additiv, mehrere Mods koennen dieselbe
+	     effect_group ergaenzen. Gefaehrlich waere nur ein Mod, der `perkGunslinger` als Ganzes
+	     ERSETZT und nach uns laedt. Dagegen steht das Schematic als zweiter Weg. -->
+	<append xpath="/progression/perks/perk[@name='perkGunslinger']/effect_group">
+		<passive_effect name="RecipeTagUnlocked" operation="base_set" level="2,5" value="1" tags="thrownAgentTurretGun"/>
+		<!-- AP erst ab Rang 4: innerhalb einer Turretsorte ist die AP-Variante das
+		     Aufstiegsziel, nicht eine Parallelwahl. -->
+		<passive_effect name="RecipeTagUnlocked" operation="base_set" level="4,5" value="1" tags="thrownAgentTurretGunAP"/>
+	</append>
+
+	<!-- Dieselbe Konstruktion fuer die uebrigen fuenf Turretsorten. Begruendung, warum das
+	     an einem Perk ueberhaupt traegt, steht im Block darueber - kurz: `Progression.
+	     ModifyValue` iteriert einen flachen Index ohne Filter auf die Art der Progression. -->
+	<append xpath="/progression/perks/perk[@name='perkMachineGunner']/effect_group">
+		<passive_effect name="RecipeTagUnlocked" operation="base_set" level="2,5" value="1" tags="thrownAgentTurretMG"/>
+		<passive_effect name="RecipeTagUnlocked" operation="base_set" level="4,5" value="1" tags="thrownAgentTurretMGAP"/>
+	</append>
+
+	<append xpath="/progression/perks/perk[@name='perkBoomstick']/effect_group">
+		<passive_effect name="RecipeTagUnlocked" operation="base_set" level="2,5" value="1" tags="thrownAgentTurretShotgun"/>
+	</append>
+
+	<append xpath="/progression/perks/perk[@name='perkDeadEye']/effect_group">
+		<passive_effect name="RecipeTagUnlocked" operation="base_set" level="3,5" value="1" tags="thrownAgentTurretSniper"/>
+	</append>
+
+	<!-- Flammenwerfer und Schock haengen an Intellect-Perks, weil es fuer sie keine
+	     Munitionsfamilie mit eigenem Perk gibt: der Flammenwerfer am reinen Turret-Perk,
+	     das Schockturret am Elektroschocker (dessen `EntityDamage perc_add
+	     tags="perkElectrocutioner"` skaliert es zugleich mit). -->
+	<append xpath="/progression/perks/perk[@name='perkTurrets']/effect_group">
+		<passive_effect name="RecipeTagUnlocked" operation="base_set" level="3,5" value="1" tags="thrownAgentTurretFlame"/>
+	</append>
+
+	<append xpath="/progression/perks/perk[@name='perkElectrocutioner']/effect_group">
+		<passive_effect name="RecipeTagUnlocked" operation="base_set" level="3,5" value="1" tags="thrownAgentTurretShock"/>
+	</append>
+
+	<!-- ============================================================
 	     ANZEIGE IM SKILL-BILDSCHIRM
 	     ============================================================
 	     ⚠⚠ EIN ZUSAETZLICHES `<display_entry>` WIRD NIE ANGEZEIGT. Das ist keine Vermutung,
