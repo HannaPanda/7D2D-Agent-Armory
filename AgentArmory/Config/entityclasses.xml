@@ -248,7 +248,24 @@
 			     aussuchen, es landet wie es landet. Ein enger Schwenkbereich waere reines
 			     Wurfglueck. 170 ist der Wert des Junk Sledge und respektiert die vanilla-
 			     Warnung "Keep under 180". -->
-			<property name="YawRange" value="170"/>
+			<!-- ⚠ 360 IST NICHT "gross", SONDERN "unbeschraenkt" - UND DER WERT WIRD HALBIERT.
+			     `MiniTurretFireController.Init` rechnet `wert * 0.5` und setzt daraus
+			     `yawRange = (-x, +x)` (IL_0197..IL_01b5). 360 ergibt also (-180, +180), und
+			     weil `Mathf.DeltaAngle` per Definition nur -180..180 liefert, besteht damit
+			     JEDES Ziel die Bereichspruefung: volle Rundumsicht.
+			     Vanilla schreibt an dieser Stelle "Keep under 180" und meint damit seinen
+			     eigenen Anwendungsfall - ein FEST GEBAUTES Geschuetz, das der Spieler beim
+			     Aufstellen ausrichtet. Eine geworfene Box kann man nicht ausrichten, und mit
+			     dem geerbten Wert 90 (also ±45°) sah ein Grossteil der Umgebung schlicht
+			     nichts. ⚠ Die Grenze filtert die ZIELSUCHE, nicht bloss das Zielen:
+			     `findTarget` -> `canHitEntity` -> `trackTarget` verwirft ein Ziel ausserhalb
+			     des Bogens komplett, das Turret bemerkt es also gar nicht.
+			     Technisch unbedenklich: `AutoTurretYawLerp` klemmt NICHTS, es dreht den Kopf
+			     nur auf `BaseRotation.y + Yaw`. Das einzige Restrisiko ist optisch - ob das
+			     geliehene Junk-Turret-Modell eine volle Umdrehung gut aussehen laesst, sagt
+			     nur ein Blick. Falls nicht, ist ein Wert um 300 (±150°) der Kompromiss.
+			     PitchRange bleibt unangetastet: nach oben und unten SOLL es begrenzt sein. -->
+			<property name="YawRange" value="360"/>
 			<property name="TurnSpeed" value="30"/>
 
 			<!-- Streuung. Basis fuer SpreadDegreesVertical/Horizontal (31/32); die
@@ -288,7 +305,8 @@
 		<entity_class name="agentTurretMG" extends="junkTurretGun">
 			<property name="Tags" value="turret,turretRanged,deployed,noMedBuffs,agentTurret"/>
 			<property name="MaxDistance" value="22"/>
-			<property name="YawRange" value="170"/>
+			<!-- Rundumsicht, Begruendung beim Gun Turret oben. -->
+			<property name="YawRange" value="360"/>
 			<property name="TurnSpeed" value="26"/>
 			<!-- Deutlich streuender als das Gun Turret: das ist der Preis fuers Dauerfeuer
 			     und der Grund, warum das MG-Turret auf Distanz schlechter ist als das
@@ -310,7 +328,8 @@
 			     Ziele schwenken, die es nicht mehr erreicht. -->
 			<property name="MaxDistance" value="9"/>
 			<!-- Weiter Schwenkbereich, weil es auf kurze Distanz einen Korridor decken soll. -->
-			<property name="YawRange" value="175"/>
+			<!-- Rundumsicht, Begruendung beim Gun Turret oben. -->
+			<property name="YawRange" value="360"/>
 			<property name="TurnSpeed" value="34"/>
 			<property name="RaySpread" value="4"/>
 			<property name="WakeUpTime" value="0.2"/>
@@ -328,11 +347,21 @@
 		<entity_class name="agentTurretSniper" extends="junkTurretGun">
 			<property name="Tags" value="turret,turretRanged,deployed,noMedBuffs,agentTurret"/>
 			<property name="MaxDistance" value="45"/>
-			<property name="YawRange" value="150"/>
-			<!-- Bewusst LANGSAM im Schwenk: das Sniper-Turret ist gegen anrueckende Ziele
-			     stark und gegen bereits nahe schwach. Ohne diesen Nachteil waere es die
-			     dominante Wahl auf jeder Distanz. -->
-			<property name="TurnSpeed" value="14"/>
+			<!-- Rundumsicht, Begruendung beim Gun Turret oben. -->
+			<property name="YawRange" value="360"/>
+			<!-- Bewusst der langsamste Schwenk der Reihe: das Sniper-Turret ist gegen
+			     anrueckende Ziele stark und gegen bereits nahe schwach. Ohne diesen Nachteil
+			     waere es die dominante Wahl auf jeder Distanz.
+			     ⚠ 14 -> 20 mit der Umstellung auf Rundumsicht. Solange der Bogen bei ±75°
+			     lag, war der langsame Schwenk ein Nachteil INNERHALB eines kleinen Feldes;
+			     seit jedes Ziel zaehlt, kann der Weg bis zu 180° betragen, und mit 14°/s
+			     waeren das dreizehn Sekunden - bei 120 s Laufzeit ein Neuntel seines Lebens,
+			     bevor der erste Schuss faellt. Mit 20°/s sind es neun Sekunden im
+			     schlimmsten und gut vier im durchschnittlichen Fall.
+			     ⚠ SEIT DER RUNDUMSICHT IST `TurnSpeed` DER WICHTIGSTE BALANCE-HEBEL der
+			     Reihe: der Schwenkbereich unterscheidet die Sorten nicht mehr, die
+			     Schwenkgeschwindigkeit schon. -->
+			<property name="TurnSpeed" value="20"/>
 			<property name="RaySpread" value="0.5"/>
 			<property name="WakeUpTime" value="0.4"/>
 			<!-- Einzelschuss mit Nachladepause statt Kadenz: BurstRoundCount 1 plus
@@ -363,7 +392,8 @@
 		<entity_class name="agentTurretFlame" extends="junkTurretGun">
 			<property name="Tags" value="turret,turretRanged,deployed,noMedBuffs,agentTurret"/>
 			<property name="MaxDistance" value="6"/>
-			<property name="YawRange" value="175"/>
+			<!-- Rundumsicht, Begruendung beim Gun Turret oben. -->
+			<property name="YawRange" value="360"/>
 			<property name="TurnSpeed" value="40"/>
 			<!-- Breite Garbe: eine Flamme trifft eine Gruppe, nicht ein Ziel. -->
 			<property name="RaySpread" value="9"/>
@@ -389,7 +419,8 @@
 		<entity_class name="agentTurretShock" extends="junkTurretGun">
 			<property name="Tags" value="turret,turretRanged,deployed,noMedBuffs,agentTurret"/>
 			<property name="MaxDistance" value="14"/>
-			<property name="YawRange" value="175"/>
+			<!-- Rundumsicht, Begruendung beim Gun Turret oben. -->
+			<property name="YawRange" value="360"/>
 			<property name="TurnSpeed" value="32"/>
 			<property name="RaySpread" value="2"/>
 			<property name="WakeUpTime" value="0.2"/>

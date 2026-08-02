@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 // Baut ein EntityTurret an einer Weltposition auf, ohne dass ein Spieler es in der Hand haelt.
@@ -47,9 +48,7 @@ public static class TurretDeployer
             return null;
         }
 
-        // Blickrichtung des Werfers uebernehmen: das Turret schaut in die Richtung, in die
-        // geworfen wurde. Vanilla nimmt an dieser Stelle ebenfalls nur den Yaw des Besitzers.
-        var rot = new Vector3(0f, owner.rotation.y, 0f);
+        var rot = new Vector3(0f, ChooseFacing(world, owner, pos), 0f);
 
         Entity e = EntityFactory.CreateEntity(cls, pos, rot);
         var turret = e as EntityTurret;
@@ -100,6 +99,64 @@ public static class TurretDeployer
             turret.Buffs.AddBuff(LifetimeBuff, ownerPlayerId, false, false, spec.Lifetime);
 
         return turret;
+    }
+
+    // In welche Richtung das aufgebaute Turret schaut.
+    //
+    // ⚠ WARUM DAS UEBERHAUPT ZAEHLT, obwohl unsere Turrets `YawRange="360"` haben: der
+    // Schwenkbereich wird zwar nicht mehr beschnitten, aber der Kopf muss trotzdem DREHEN,
+    // und `TurnSpeed` liegt je nach Sorte bei 14 bis 40 Grad pro Sekunde. Ein Sniper-Turret,
+    // das im ungünstigsten Fall 180 Grad zurücklegen muss, verliert dreizehn Sekunden - bei
+    // 120 s Laufzeit ein Neuntel seines Lebens, bevor der erste Schuss fällt.
+    //
+    // Vorher stand hier `owner.rotation.y`, also die Blickrichtung des Werfers IM MOMENT DES
+    // AUFSCHLAGS. Das ist nicht die Wurfrichtung: zwischen Wurf und Landung vergeht bei einem
+    // weiten Wurf über eine Sekunde, und in der dreht man sich. Praktisch war die Ausrichtung
+    // damit beliebig - genau der im Test beobachtete Effekt.
+    private static float ChooseFacing(World world, EntityAlive owner, Vector3 pos)
+    {
+        // 1. Wahl: der naechste Gegner. Wer ein Turret mitten in einen Kampf wirft, will, dass
+        //    es sofort schiesst, nicht dass es sich erst umsieht.
+        var scan = new List<Entity>();
+        world.GetEntitiesInBounds(typeof(EntityEnemy),
+            new Bounds(pos, new Vector3(ScanRange * 2f, ScanRange * 2f, ScanRange * 2f)), scan);
+        Entity nearest = null;
+        float bestSq = ScanRange * ScanRange;
+        for (int i = 0; i < scan.Count; i++)
+        {
+            var e = scan[i] as EntityAlive;
+            // Schlafende POI-Zombies zaehlen nicht: sie sind kein Grund, das Turret in eine
+            // Ecke schauen zu lassen, in der gerade nichts passiert. Dieselbe Filterung
+            // benutzt der Seeker bei seiner Zielsuche.
+            if (e == null || e.IsDead() || e.sleepingOrWakingUp) continue;
+            float d = (e.position - pos).sqrMagnitude;
+            if (d < bestSq) { bestSq = d; nearest = e; }
+        }
+        if (nearest != null) return YawTowards(pos, nearest.position);
+
+        // 2. Wahl: die WURFRICHTUNG, also vom Werfer zum Landepunkt. Anders als die
+        //    Blickrichtung ist die geometrisch bestimmt und aendert sich nicht mehr, waehrend
+        //    die Box fliegt - man zeigt mit dem Wurf, wohin das Turret schauen soll.
+        Vector3 throwDir = pos - owner.position;
+        throwDir.y = 0f;
+        if (throwDir.sqrMagnitude > 0.25f) return Quaternion.LookRotation(throwDir).eulerAngles.y;
+
+        // 3. Wahl: vor die Fuesse geworfen, keine Richtung ableitbar - dann eben die
+        //    Blickrichtung des Werfers.
+        return owner.rotation.y;
+    }
+
+    // Radius, in dem beim Aufbau nach einem Gegner gesucht wird. Bewusst grosszuegiger als die
+    // kurzen Turretreichweiten (Shotgun 9 m, Flamme 6 m): es geht nicht darum, ob das Turret
+    // schon schiessen kann, sondern in welche Richtung es sinnvollerweise wartet.
+    private const float ScanRange = 25f;
+
+    private static float YawTowards(Vector3 from, Vector3 to)
+    {
+        Vector3 dir = to - from;
+        dir.y = 0f;   // nur der horizontale Anteil; die Hoehe macht der PitchController
+        if (dir.sqrMagnitude < 0.0001f) return 0f;
+        return Quaternion.LookRotation(dir).eulerAngles.y;
     }
 
     // Der MP-korrekte Weg zur Besitzerkennung. Vanilla nimmt hier

@@ -104,6 +104,43 @@ player *with* the turret perk would get fewer simultaneous Agent turrets than on
 `ForceOn` bypasses the counter, but it is a one-frame grace — `OnUpdateEntity` resets it to
 false at @994. `Patch_TurretRuntime` therefore re-sets it every frame.
 
+## Facing and traverse
+
+Two separate things decide what a turret can shoot at, and both bit us in the first play test:
+it appeared to only see enemies in a limited wedge, pointing in an arbitrary direction.
+
+**`YawRange` is halved.** `Init` computes `value * 0.5` and stores `yawRange = (-x, +x)`
+(IL_0197..IL_01b5). Vanilla `junkTurretGun` uses 90, which is **±45°**, not 90° of coverage.
+
+**The limit filters target *acquisition*, not just aiming.** `findTarget` → `canHitEntity` →
+`trackTarget`, and `trackTarget` returns false for anything outside the yaw or pitch window.
+A turret genuinely does not notice an enemy behind it.
+
+**The window is anchored to the entity's spawn rotation.** `EntityTurret.CenteredYaw` is read
+in several places and **never written anywhere in the assembly**, so it stays 0 and the arc sits
+symmetrically around the entity's forward vector. For a *placed* turret that is fine — the
+player aims it. For a thrown box it is not, and the first implementation made it worse by
+taking `owner.rotation.y` **at the moment of the explosion**, i.e. wherever the thrower happened
+to be looking a second or more after the throw.
+
+Both are fixed:
+
+- **`YawRange="360"` on all six.** That yields `(-180, +180)`, and since `Mathf.DeltaAngle`
+  only ever returns -180..180, every target passes. `AutoTurretYawLerp` clamps nothing — it
+  simply lerps the head's `localRotation` to `BaseRotation.y + Yaw` — so this is safe
+  mechanically. The remaining risk is cosmetic: whether the borrowed junk-turret model looks
+  right doing a full revolution. If it does not, ~300 (±150°) is the compromise.
+  `PitchRange` stays limited on purpose.
+- **`TurretDeployer.ChooseFacing`** picks the initial heading: nearest awake `EntityEnemy`
+  within 25 m, else the **throw vector** (landing position minus thrower position, which is
+  geometrically fixed and does not drift while the box is in the air), else the thrower's
+  facing. This still matters at 360° because the head has to physically traverse.
+
+⚠ **Consequence for balance: `TurnSpeed` is now the main differentiator between turret types.**
+The arc no longer separates them; how fast they can bring the gun round does. The sniper went
+from 14 to 20 °/s for exactly this reason — at 14, a target directly behind cost thirteen
+seconds of a 120-second lifetime before the first shot.
+
 ## Deployment
 
 `TurretDeployer.Deploy` replays `ItemActionSpawnTurret.ExecuteAction` (IL_01b7..IL_0376)
