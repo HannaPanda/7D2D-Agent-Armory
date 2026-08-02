@@ -2,10 +2,11 @@ using HarmonyLib;
 
 // Laufzeitverhalten unserer Turrets, das vanilla nicht liefert:
 //   (1) der Zaehler fuer gleichzeitig aktive Turrets darf uns nicht abschalten,
-//   (2) ein leergeschossenes Turret verschwindet, statt nur auszugehen.
+//   (2) ein leergeschossenes Turret verschwindet, statt nur auszugehen,
+//   (3) die Lebenszeit laeuft ab.
 //
-// Die Lebenszeit steckt NICHT hier, sondern im Buff `buffAgentTurretLifetime`
-// (siehe MinEventActionRetireTurret) - die ueberlebt einen Speicherstand, ein Feld hier nicht.
+// (3) rechnet `TurretLifetime`; dort steht auch, warum die Uhr in der ItemValue-Metadata liegt
+// und nicht - wie zuerst gebaut - in einem Buff.
 [HarmonyPatch(typeof(EntityTurret), "OnUpdateEntity")]
 public static class Patch_TurretRuntime
 {
@@ -61,6 +62,13 @@ public static class Patch_TurretRuntime
         // (`IsOn &= Meta > 0`, IL_01a9..IL_01c4). Fuer einen Einwegartikel ist das die falsche
         // Endlage: es bliebe ein totes Requisit in der Landschaft stehen.
         if (__instance.AmmoCount <= 0)
+        {
             TurretRetire.Retire(__instance, "Magazin leer");
+            return;
+        }
+
+        // ---- (3) Lebenszeit ------------------------------------------------------------
+        if (TurretLifetime.Tick(__instance))
+            TurretRetire.Retire(__instance, "Lebenszeit abgelaufen");
     }
 }

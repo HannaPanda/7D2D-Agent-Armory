@@ -309,8 +309,14 @@
 			     mit dem Tag `perkTurrets`. Die Ladung einer WEGWERFBOX soll aber auf dem
 			     Ladentisch feststehen und nicht am Skillbaum haengen. -->
 			<property name="TurretAmmoCount" value="120"/>
-			<!-- Sekunden. Traeger ist der Buff `buffAgentTurretLifetime` - der ueberlebt
-			     einen Speicherstand, ein Zaehler in C# nicht. -->
+			<!-- Sekunden Laufzeit. Der Wert landet beim Aufbau in der Metadata der
+			     OriginalItemValue des Turrets und wird von `TurretLifetime` heruntergezaehlt.
+			     ⚠ Dort stand zuerst ein Buff mit dieser Dauer, mit der Begruendung, Buffs
+			     wuerden mitgespeichert. Das ist nachweislich falsch - `EntityBuffs.Write` hat
+			     im ganzen Assembly nur zwei Aufrufer, `PlayerDataFile` und ein Netzwerkpaket -,
+			     und ein Turret, das einen Speicherstand ueberlebte, wurde dadurch unsterblich.
+			     Die Metadata der ItemValue wird dagegen von `EntityTurret.Write` mitgeschrieben.
+			     Ganze Begruendung in `TurretLifetime.cs`. -->
 			<property name="TurretLifetime" value="90"/>
 
 			<!-- Zustellexplosion: keine Wirkung, nur ein kleiner Marker-Puff. Der Aufbau

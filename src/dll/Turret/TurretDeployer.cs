@@ -9,12 +9,6 @@ using UnityEngine;
 // bekommt ein Turret, das dasteht und nichts tut, ohne eine einzige Fehlerzeile im Log.
 public static class TurretDeployer
 {
-    // Lebenszeit-Traeger. Bewusst ein BUFF und keine statische Dictionary<entityId, float>:
-    // Buffs werden mit der Entity gespeichert, ein Dictionary ist nach dem naechsten Laden weg
-    // und das Turret waere unsterblich. Der Buff tut selbst nichts - `Patch_TurretRuntime`
-    // liest nur, ob er noch da ist.
-    public const string LifetimeBuff = "buffAgentTurretLifetime";
-
     // Gibt das aufgebaute Turret zurueck, oder null wenn etwas fehlt (mit Logzeile).
     public static EntityTurret Deploy(World world, TurretSpec spec, Vector3 pos, int ownerPlayerId)
     {
@@ -89,14 +83,13 @@ public static class TurretDeployer
             ? spec.AmmoCount
             : core.ItemClass.GetInitialMetadata(turret.OriginalItemValue);
 
+        // VOR dem Spawn: die Uhr liegt in der Metadata der OriginalItemValue, und die soll
+        // schon beim ersten `OnUpdateEntity` stehen. Fehlt sie dort, baut `TurretLifetime.Tick`
+        // das Turret sofort wieder ab - absichtlich, siehe die Begruendung dort.
+        TurretLifetime.Arm(turret, spec.Lifetime);
+
         owner.AddOwnedEntity(turret);
         world.SpawnEntityInWorld(turret);
-
-        // NACH dem Spawn: vorher gibt es die Bufflisten der Entity noch nicht zuverlaessig.
-        // Die Dauer kommt aus der Box, nicht aus der buffs.xml - deshalb der explizite
-        // Wert statt -1.
-        if (spec.Lifetime > 0f)
-            turret.Buffs.AddBuff(LifetimeBuff, ownerPlayerId, false, false, spec.Lifetime);
 
         return turret;
     }

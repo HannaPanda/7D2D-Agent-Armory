@@ -157,18 +157,43 @@ The throw→deploy hook is a **second, separate postfix** on `GameManager.Explos
 alongside the Seeker's. They filter on their own items and cannot see each other; merging them
 would put the working Seeker path at risk for no gain.
 
-## Lifetime lives in a buff, not in a dictionary
+## Lifetime lives in the ItemValue metadata
 
-`buffAgentTurretLifetime` is attached on deploy with the duration from the box, and its
-`onSelfBuffFinish` fires the custom `MinEventActionRetireTurret`. Two reasons this is not a
-`Dictionary<entityId, float>`:
+⚠ **This was built as a buff first, on a premise that is false.** The reasoning was "buff
+durations are saved with the entity", which is true for players and for nothing else:
 
-1. **Buff durations are saved with the entity.** A static dictionary is empty after a reload,
-   which would make any turret that survived a save immortal — and that almost never shows up
-   in testing, because one rarely saves inside the 90 seconds.
-2. **`onSelfBuffFinish` is an event.** Polling "is the buff still there?" cannot distinguish
-   *expired* from *never set*, so a typo in the buff name would delete every turret
-   immediately after deployment.
+- `EntityAlive.Write` calls `Entity.Write` and then writes a single `Int32`. No buffs.
+- `EntityBuffs.Write`/`Read` has exactly **two** callers in the whole assembly:
+  `PlayerDataFile.FromPlayer`/`ToPlayer` and `NetPackageEntityStatsBuff`.
+
+So a buff on a non-player entity does not survive a save. A turret that outlived a reload lost
+its clock, `onSelfBuffFinish` never fired, and it stood there forever — precisely the failure
+the buff was chosen to prevent. It showed up in a log as `TurretTracker … loaded 2` in a
+session where no turret had been thrown.
+
+The clock now lives in `OriginalItemValue.Metadata`, which **is** persisted:
+`EntityTurret.Write` serialises `OriginalItemValue` (IL_001d), and `ItemValue.Write` writes
+`UseTimes`, `Quality`, `Meta` *and* the `Metadata` dictionary. `SetMetadata(string, float)` /
+`TryGetMetadata(string, out float)` are a typed store meant for exactly this.
+
+`UseTimes` would also have persisted and was the other candidate, but it feeds
+`PercentUsesLeft`, which vanilla already uses to gate `IsOn` — that would have coupled two
+mechanics that have no business being coupled.
+
+Two details in `TurretLifetime` worth keeping:
+
+- **Time comes from `Time.time` differences, not `Time.deltaTime`.** `OnUpdateEntity` is not
+  guaranteed to be one call per frame. If it ran on a fixed 20 Hz tick at 60 fps, a sum of
+  `deltaTime` would accumulate a third of real time and every turret would live three times as
+  long — slowly enough to pass as "feels a bit long" in testing.
+- **A turret with no clock in its metadata is retired on sight.** That covers turrets saved by
+  the buff-based version and any future metadata loss. The alternative — assume a fresh
+  lifetime — turns a lost clock into a turret that lives longer than it should, which is the
+  bug we came from.
+
+Consequence to be aware of: the clock only advances while the entity is loaded. A turret in an
+unloaded chunk pauses. That is ordinary entity behaviour, and for a 60–120 s consumable it is
+not worth engineering around.
 
 ## Pickup is blocked at `CanInteract`
 

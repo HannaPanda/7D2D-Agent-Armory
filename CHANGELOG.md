@@ -33,6 +33,19 @@ perk that matches its ammunition.
   in the game sits in a `crafting_skill`. It works because `Progression.ModifyValue` iterates a
   flat index over all progression values with no filter on their kind. Six schematics remain as
   the second route for anyone adding the mod to a running save.
+- **The lifetime clock lives in the turret's item metadata**, after the first attempt put it
+  in a buff on the strength of an unchecked claim. Buffs on a non-player entity are *not*
+  saved: `EntityAlive.Write` writes no buffs, and `EntityBuffs.Write` has exactly two callers
+  in the assembly, `PlayerDataFile` and a net package. A turret that outlived a reload lost its
+  clock and stood there forever - the very failure the buff was chosen to prevent.
+  `EntityTurret.Write` does serialise `OriginalItemValue`, whose `Metadata` dictionary is a
+  typed, persisted key-value store meant for exactly this.
+- **Turrets cover a full circle.** `YawRange` is halved on parse, so the inherited 90 was
+  plus/minus 45 degrees - and the limit filters target *acquisition*, not just aiming, so a
+  turret genuinely did not notice anything behind it. At 360 every target passes, since
+  `Mathf.DeltaAngle` only returns -180..180. The initial heading now comes from the nearest
+  enemy, or failing that the throw vector, rather than wherever the thrower happened to be
+  looking when the box landed. `TurnSpeed` is the main difference between the types now.
 - **Empty ammunition only switches a vanilla turret off; ours despawns.** Likewise the 10 m
   owner leash (`JunkTurretActiveRange`) and the active-turret counter are raised or bypassed —
   the latter matters because `perkTurrets` sets the counter with an untagged `base_set 0`,

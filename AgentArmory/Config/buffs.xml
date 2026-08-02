@@ -69,38 +69,6 @@
 			</effect_group>
 		</buff>
 
-		<!-- ============================================================
-		     LEBENSZEIT EINES AGENT-TURRETS.
-		     ============================================================
-		     Der Buff tut selbst nichts - er IST die Uhr. `TurretDeployer.Deploy` haengt ihn
-		     nach dem Spawn an das Turret und uebergibt die Dauer aus der Wurfbox
-		     (`TurretLifetime`), deshalb steht hier bewusst nur ein Platzhalter: der Wert
-		     unten greift nur, wenn jemand den Buff ohne explizite Dauer setzt.
-
-		     ⚠ WARUM EIN BUFF UND KEIN ZAEHLER IN C#. Zwei Gruende, beide teuer erkauft,
-		     wenn man sie uebersieht:
-		       (1) Buffdauern werden MIT DER ENTITY GESPEICHERT. Eine statische
-		           Dictionary<entityId, float> ist nach dem naechsten Laden leer - ein Turret,
-		           das einen Speicherstand ueberlebt, waere unsterblich. Das faellt beim
-		           Testen fast nie auf, weil man selten mitten in den 90 Sekunden speichert.
-		       (2) `onSelfBuffFinish` ist ein EREIGNIS. Wuerde stattdessen jeden Frame geprueft,
-		           ob der Buff noch da ist, liesse sich "abgelaufen" nicht von "nie gesetzt"
-		           unterscheiden - und ein Tippfehler im Buffnamen wuerde JEDES Turret sofort
-		           nach dem Aufbau verschwinden lassen, ohne eine Fehlerzeile.
-
-		     `onSelfBuffFinish` feuert nur beim regulaeren Ablauf der Dauer, nicht bei jedem
-		     Entfernen (das waere `onSelfBuffRemove`) - genau richtig, sonst wuerde ein
-		     Buffreset das Turret abbauen.
-
-		     Die Action ist assembly-qualifiziert: `ReflectionHelpers.GetTypeWithPrefix` baut
-		     "MinEventAction" + Name und sucht damit sonst nur in Assembly-CSharp. Ohne den
-		     Assemblynamen loest die Klasse einfach nicht auf - ohne Fehlermeldung. -->
-		<buff name="buffAgentTurretLifetime" name_key="buffAgentTurretLifetime" hidden="true">
-			<duration value="90"/>
-			<effect_group>
-				<triggered_effect trigger="onSelfBuffFinish" action="RetireTurret, AgentArmory"/>
-			</effect_group>
-		</buff>
 
 		<!-- ============================================================
 		     SCHOCK-EFFEKT des Schockturrets.
