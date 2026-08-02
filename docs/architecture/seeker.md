@@ -79,9 +79,15 @@ grazing a wall or the vertical face of a ledge is a complete trigger — and the
 explosion is what positions the pod.
 
 The mod's own `ExplodeOnLandingOnly` property (`Patch_LandingOnlyCharge`) restricts this to
-contacts with an upward normal (`normal.y >= 0.5`). That the normal points from the struck
-surface towards the item is established by the game's own code: `OnCollisionEnter` computes
-`point - 0.25f * normal` and expects to find the block there.
+contacts with an upward normal (`normal.y >= 0.5`) that do **not** belong to an entity. That
+the normal points from the struck surface towards the item is established by the game's own
+code: `OnCollisionEnter` computes `point - 0.25f * normal` and expects to find the block there.
+
+The entity half of that test carries its own weight rather than being a refinement: landing on
+a zombie's head has an upward normal and would pass the geometric test cleanly — which is how
+turret boxes ended up deployed at head height on walking zombies. `GameUtils.GetHitRootEntity`
+is the game's own answer to "does this collider belong to a creature", and the original method
+calls it a few lines later to pick the impact sound.
 
 Two things to know about that patch:
 

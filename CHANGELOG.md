@@ -15,9 +15,16 @@ the tile you were standing on; only a throw aimed well away from you worked.
   `GameManager.ExplosionServer` hands to the pod and turret spawners.
 - **Fix: a new `ExplodeOnLandingOnly` property on the throwable**, honoured by
   `Patch_LandingOnlyCharge`. Only a contact the charge actually comes down *on* counts —
-  contact normal at least 0.5 upward. Walls, edges and ceilings are ignored, so the charge
-  falls past them and deploys below you. Set on the Cluster Seeker and, through `Extends`, on
-  every turret box, where the same defect meant a grazed wall built the turret against it.
+  contact normal at least 0.5 upward, **and not a creature**. Walls, edges and ceilings are
+  ignored, so the charge falls past them and deploys below you. Set on the Cluster Seeker and,
+  through `Extends`, on every turret box, where the same defect meant a grazed wall built the
+  turret against it.
+- **A body is not ground either.** Turret boxes had been landing on zombies' heads and
+  building the turret up there — and that case passes an upward-normal test on its own, so the
+  contact is additionally rejected when `GameUtils.GetHitRootEntity` resolves the struck
+  collider to an entity (the same lookup the original method makes for its impact sound; it
+  answers for `E_BP_*` body parts and `E_Vehicle`, and null for blocks and terrain). The charge
+  slides off and deploys on the floor.
 - The patch is a prefix that suppresses the whole handler, not a postfix that undoes
   `isCollided`: on a client that is physics master, `OnCollisionEnter` sends
   `PhysicsMasterSendToServer` immediately, and `NetPackageEntityPhysics.Setup` carries

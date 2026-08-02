@@ -28,11 +28,13 @@ using UnityEngine;
 // Fuer unsere Wurfladungen ist die Kollision der einzige Zuender.
 //
 // FIX: fuer Items mit `ExplodeOnLandingOnly=true` zaehlt nur noch eine Beruehrung, bei der die
-// Ladung AUF etwas aufkommt. Kriterium ist die Kontaktnormale. Dass sie vom getroffenen Block
-// weg zur Ladung hin zeigt, steht im Spielcode selbst: `OnCollisionEnter` rechnet
-// `point - 0.25f * normal` und erwartet dort den Block (IL_0124..IL_0168, mit `isair`-Probe und
-// Fallback auf `FindMasterBlockForEntityModelBlock`). Deckenkontakt hat also normal.y ~ -1,
-// eine Wand ~ 0, ein Boden ~ +1.
+// Ladung AUF etwas aufkommt - und zwar auf die Welt, nicht auf ein Lebewesen. Erstes Kriterium
+// ist die Kontaktnormale. Dass sie vom getroffenen Block weg zur Ladung hin zeigt, steht im
+// Spielcode selbst: `OnCollisionEnter` rechnet `point - 0.25f * normal` und erwartet dort den
+// Block (IL_0124..IL_0168, mit `isair`-Probe und Fallback auf
+// `FindMasterBlockForEntityModelBlock`). Deckenkontakt hat also normal.y ~ -1, eine Wand ~ 0,
+// ein Boden ~ +1. Zweites Kriterium ist, dass der Kontakt nicht zu einer Entity gehoert -
+// begruendet an `HasLandingContact`.
 //
 // Warum ein PREFIX mit `return false` und nicht ein Postfix, der `isCollided` zuruecknimmt:
 // `OnCollisionEnter` schickt bei einem Client, der Physics-Master ist, sofort
@@ -94,11 +96,32 @@ public static class Patch_LandingOnlyCharge
         return value;
     }
 
+    // Eine Landung ist ein Kontakt, bei dem die Ladung von oben auf etwas AUFKOMMT - und zwar
+    // auf die Welt, nicht auf ein Lebewesen.
+    //
+    // ⚠ Die Entity-Pruefung ist kein Beiwerk, sie deckt den haeufigeren Fall ab: auf einem
+    // Zombiekopf zu landen hat eine nach oben zeigende Normale und wuerde die Normalenpruefung
+    // allein glatt passieren. Genau so sind im Spieltest Turrets in Kopfhoehe auf laufenden
+    // Zombies aufgebaut worden. Faellt der Kontakt weg, rutscht die Ladung ab und kommt auf dem
+    // Boden auf.
+    //
+    // `GameUtils.GetHitRootEntity` ist die Auskunft des Spiels selbst - dieselbe, die die
+    // Originalmethode ein paar Zeilen spaeter fuer die Wahl des Aufschlaggeraeuschs holt
+    // (IL_00b3). Sie liefert nur fuer Tags ab `E_BP_` (Koerperteil) und `E_Vehicle` etwas,
+    // fuer Bloecke und Gelaende null.
     private static bool HasLandingContact(Collision collision)
     {
         int count = collision.GetContacts(contacts);
         for (int i = 0; i < count; i++)
-            if (contacts[i].normal.y >= MinLandingNormalY) return true;
+        {
+            ContactPoint c = contacts[i];
+            if (c.normal.y < MinLandingNormalY) continue;
+
+            Collider other = c.otherCollider;
+            if (other == null) return true;
+            Transform t = other.transform;
+            if (t == null || GameUtils.GetHitRootEntity(t.tag, t) == null) return true;
+        }
         return false;
     }
 }
