@@ -2,6 +2,37 @@
 
 ## Unreleased
 
+**A thrown charge now deploys where it lands, not where it grazes.** Standing on a narrow
+ledge and throwing the Cluster Seeker down over the edge left the pod hanging in mid-air on
+the tile you were standing on; only a throw aimed well away from you worked.
+
+- **`ExplodeOnHit` does not mean "explodes on hitting the ground".** `EntityItem
+  .OnCollisionEnter` sets `Entity.isCollided` for *any* contact that passes `CanCollide`, with
+  no test of the contact normal or the speed — the normal/velocity arithmetic further down
+  that method only decides whether an impact *sound* plays. `ItemClassTimeBomb.OnDroppedUpdate`
+  then detonates on `bExplodeOnHitGround && isCollided`. Brushing the vertical face of the
+  block you are standing on is a full trigger, and that position is what
+  `GameManager.ExplosionServer` hands to the pod and turret spawners.
+- **Fix: a new `ExplodeOnLandingOnly` property on the throwable**, honoured by
+  `Patch_LandingOnlyCharge`. Only a contact the charge actually comes down *on* counts —
+  contact normal at least 0.5 upward. Walls, edges and ceilings are ignored, so the charge
+  falls past them and deploys below you. Set on the Cluster Seeker and, through `Extends`, on
+  every turret box, where the same defect meant a grazed wall built the turret against it.
+- The patch is a prefix that suppresses the whole handler, not a postfix that undoes
+  `isCollided`: on a client that is physics master, `OnCollisionEnter` sends
+  `PhysicsMasterSendToServer` immediately, and `NetPackageEntityPhysics.Setup` carries
+  `isCollided` as a flag bit — a postfix would come too late and the server would still
+  detonate the charge in multiplayer.
+- **There was never a fuse as a safety net**, despite a comment in `items.xml` that said so.
+  `explodeAfterTicks` is only ever armed by `FuseStartOnDrop` (set on neither vanilla parent)
+  or by `FusePrimeOnActivate` (deliberately off here), so `Meta` stays 0 and every tick returns
+  immediately. The collision is the only trigger there is. Adding `FuseStartOnDrop` would be
+  the wrong repair — it also arms a charge merely dropped out of the inventory.
+
+Headless on 3.0.0, 3.0.1 and 3.1.0: mod loaded, 8 Harmony patches (up from 7, so the new
+target resolves on all three), 0 ERR / 0 EXC / 0 XML problems. The behaviour itself is not
+covered by that — a headless run throws nothing.
+
 **New module: throwable turrets.** A box you throw like a shaped charge; it deploys an
 auto-turret where it lands. Single use — fixed ammunition, a lifetime, and no picking it back
 up. Six variants across eight craftable boxes, each gated behind and scaling with the weapon

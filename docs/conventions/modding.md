@@ -126,6 +126,7 @@ Each module keeps a `DBG` constant. Flip these to `false` before release:
 - `Seeker/MinEventActionSeekerExplode.cs`
 - `Seeker/Patch_SeekerPhysics.cs`
 - `Seeker/Patch_SeekerRoll.cs`
+- `Shared/Patch_LandingOnlyCharge.cs`
 
 ⚠ The last two were added late: they had **no flag at all** and kept printing per-entity
 capsule and model-offset lines into every player's log - eleven entities per throw. Grepping

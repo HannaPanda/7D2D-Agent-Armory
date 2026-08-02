@@ -69,6 +69,31 @@ no root-motion animation clips supplies nothing.
 task every tick — `Reset()` → `base.Reset()` → `moveHelper.Stop()` → `navigator.clearPath()`,
 destroying every movement command in the tick it was issued.
 
+### `ExplodeOnHit` fires on any contact, in any direction
+
+`EntityItem.OnCollisionEnter` sets `Entity.isCollided = true` for every collision that survives
+`CanCollide`. There is no test of the contact normal and none of the speed; the
+normal/velocity arithmetic later in that method decides only whether an impact sound plays.
+`ItemClassTimeBomb.OnDroppedUpdate` detonates on `bExplodeOnHitGround && isCollided`, so
+grazing a wall or the vertical face of a ledge is a complete trigger — and the delivery
+explosion is what positions the pod.
+
+The mod's own `ExplodeOnLandingOnly` property (`Patch_LandingOnlyCharge`) restricts this to
+contacts with an upward normal (`normal.y >= 0.5`). That the normal points from the struck
+surface towards the item is established by the game's own code: `OnCollisionEnter` computes
+`point - 0.25f * normal` and expects to find the block there.
+
+Two things to know about that patch:
+
+- It is a **prefix returning false**, not a postfix that undoes `isCollided`. On a client that
+  is physics master, `OnCollisionEnter` calls `PhysicsMasterSendToServer` inline, and
+  `NetPackageEntityPhysics.Setup` packs `isCollided` into its flags — a postfix would be too
+  late to stop the server detonating the charge.
+- **There is no fuse behind it.** `explodeAfterTicks` is armed only by `FuseStartOnDrop` or
+  `FusePrimeOnActivate`, and the charge has neither, so `Meta` stays 0 and every dropped-update
+  tick returns at once. The collision is the sole trigger. `FuseStartOnDrop` is not the missing
+  piece — it would also arm a charge that was merely dropped from the inventory.
+
 ## Known open issue
 
 Something moves the drones directly, bypassing `Entity.motion` — measured single-tick

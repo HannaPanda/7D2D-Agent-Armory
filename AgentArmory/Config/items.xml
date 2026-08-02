@@ -96,14 +96,29 @@
 				<property name="BlastPower" value="0"/>
 				<property name="ParticleIndex" value="12"/>
 			</property>
-			<!-- FuseTime must be > 0 (0 => explodeAfterTicks=0 => never detonates, inert dud).
-			     The fuse starts the instant it's thrown and counts down during flight, so a
-			     SHORT fuse would detonate in mid-air on a long throw (pod spawns early/short).
-			     We want it to blow on GROUND IMPACT: ExplodeOnHit (inherited) forces detonation
-			     the moment it collides, regardless of fuse remaining. So we set a LONG fuse
-			     (6s) purely as a safety backup — long enough to survive any throw arc — and
-			     let the impact do the real triggering. Throw it as far as you like. -->
+			<!-- ⚠ KORREKTUR 2026-08-03: der Zuender laeuft hier NIE, dieser Wert ist totes
+			     Erbe. `ItemClassTimeBomb.OnDroppedUpdate` setzt `Meta = explodeAfterTicks`
+			     ausschliesslich, wenn `FuseStartOnDrop` gesetzt ist (steht weder an
+			     thrownGrenadeContact noch an thrownTimedCharge) oder wenn `FusePrimeOnActivate`
+			     greift (bei uns bewusst aus, siehe oben). Ohne beides bleibt Meta 0 und
+			     `if (Meta <= 0) ret` beendet jeden Tick.
+			     ⇒ Die Kollision ist der EINZIGE Zuender, ein Zeitnetz gibt es nicht. Der frueher
+			     hier stehende Kommentar ("6s als Sicherheitsnetz") war falsch.
+			     `FuseStartOnDrop` nachzuruesten waere die falsche Reparatur: es zuendet auch eine
+			     Ladung, die man nur aus dem Inventar fallen laesst. Der Wert bleibt stehen, weil
+			     er nichts kostet und `explodeAfterTicks=0` bei einem spaeteren Umbau ein stiller
+			     Blindgaenger waere. -->
 			<property name="FuseTime" value="6"/>
+
+			<!-- ⚠ MOD-EIGENE PROPERTY, ausgewertet von `Patch_LandingOnlyCharge`.
+			     `ExplodeOnHit` reagiert auf JEDE Beruehrung in JEDEM Winkel: `EntityItem
+			     .OnCollisionEnter` setzt `isCollided` ohne Blick auf Normale oder Tempo. Wer
+			     erhoeht auf einer schmalen Kante steht und nach unten wirft, streift damit die
+			     senkrechte Kantenflaeche, und der Pod baut sich auf dem eigenen Tile auf statt
+			     unten. Mit dieser Property zaehlt nur noch ein Kontakt, bei dem die Ladung AUF
+			     etwas aufkommt (Kontaktnormale nach oben); an Waenden und Kanten prallt sie ab
+			     und faellt weiter. -->
+			<property name="ExplodeOnLandingOnly" value="true"/>
 		</item>
 
 		<!-- ============================================================
@@ -267,6 +282,14 @@
 			         schlimmer als gar keine). -->
 			<property name="ExplodeOnHit" value="true"/>
 			<property name="StickPercent" value="0"/>
+			<!-- ⚠ NACHTRAG 2026-08-03: `ExplodeOnHit` allein liefert den oben gewuenschten
+			     "Bodenkontakt als Ausloeser" NICHT. `EntityItem.OnCollisionEnter` setzt
+			     `isCollided` bei jeder Beruehrung, egal in welchem Winkel; eine gestreifte Wand
+			     oder Kante zaehlt genauso wie der Boden, und die Box baut ihr Turret dann dort
+			     auf, wo sie die Wand beruehrt hat. Diese mod-eigene Property (ausgewertet in
+			     `Patch_LandingOnlyCharge`) verlangt eine nach oben zeigende Kontaktnormale,
+			     also ein echtes Aufkommen. Vererbt sich ueber `Extends` an alle Varianten. -->
+			<property name="ExplodeOnLandingOnly" value="true"/>
 
 			<!-- Eigene Tags. Geerbt kaemen `perkDemolitionsExpert,explosivesSkill,T3` mit -
 			     dann wuerde der Sprengstoff-Perk unsere (voellig harmlose) Zustellexplosion
