@@ -36,10 +36,12 @@ perk that matches its ammunition.
 - **The lifetime clock lives in the turret's item metadata**, after the first attempt put it
   in a buff on the strength of an unchecked claim. Buffs on a non-player entity are *not*
   saved: `EntityAlive.Write` writes no buffs, and `EntityBuffs.Write` has exactly two callers
-  in the assembly, `PlayerDataFile` and a net package. A turret that outlived a reload lost its
-  clock and stood there forever - the very failure the buff was chosen to prevent.
-  `EntityTurret.Write` does serialise `OriginalItemValue`, whose `Metadata` dictionary is a
-  typed, persisted key-value store meant for exactly this.
+  in the assembly, `PlayerDataFile` and a net package. A turret that outlived a reload would
+  have lost its clock and stood there forever - the very failure the buff was chosen to
+  prevent. `EntityTurret.Write` does serialise `OriginalItemValue`, whose `Metadata` dictionary
+  is a typed, persisted key-value store meant for exactly this. (The log line first taken as
+  proof that this had already happened turned out to be two player-placed turrets in unloaded
+  chunks; the defect rests on the `Write` evidence, not on that.)
 - **Turrets cover a full circle.** `YawRange` is halved on parse, so the inherited 90 was
   plus/minus 45 degrees - and the limit filters target *acquisition*, not just aiming, so a
   turret genuinely did not notice anything behind it. At 360 every target passes, since

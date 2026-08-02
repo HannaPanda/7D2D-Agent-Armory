@@ -166,10 +166,17 @@ durations are saved with the entity", which is true for players and for nothing 
 - `EntityBuffs.Write`/`Read` has exactly **two** callers in the whole assembly:
   `PlayerDataFile.FromPlayer`/`ToPlayer` and `NetPackageEntityStatsBuff`.
 
-So a buff on a non-player entity does not survive a save. A turret that outlived a reload lost
-its clock, `onSelfBuffFinish` never fired, and it stood there forever — precisely the failure
-the buff was chosen to prevent. It showed up in a log as `TurretTracker … loaded 2` in a
-session where no turret had been thrown.
+So a buff on a non-player entity does not survive a save. A turret that outlived a reload would
+have lost its clock, `onSelfBuffFinish` would never have fired, and it would have stood there
+forever — precisely the failure the buff was chosen to prevent.
+
+⚠ **The bug is real; the symptom first cited for it was not.** `TurretTracker … loaded 2` in a
+session with no turret thrown was read as two immortal turrets. It is not: `turrets.dat` holds
+two ids that predate the whole module, and `TurretTracker.Save` logs
+`saving {total} ({turretsActive} + {turretsUnloaded})` — both sat in `turretsUnloaded`, i.e.
+two player-placed turrets in unloaded chunks. A live agent turret pushed the line to
+`3 (1 + 2)` and back. The persistence defect stands on the `Write` evidence above and on
+nothing else.
 
 The clock now lives in `OriginalItemValue.Metadata`, which **is** persisted:
 `EntityTurret.Write` serialises `OriginalItemValue` (IL_001d), and `ItemValue.Write` writes
