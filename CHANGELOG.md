@@ -58,10 +58,13 @@ perk that matches its ammunition.
   the timed charge this box extends has **no `ExplodeOnHit` and `StickPercent=1`**, so without
   correction the box would have stuck to walls and built its turret in mid-air.
 
-**Not yet verified:** the turrets are silent, and the cause is not found. The vanilla sound
-path was walked in IL and is intact, so each turret now sets its sound explicitly and a probe
-logs the runtime values for the next play test. The flamethrower's per-shot flame effect also
-needs a look. Details in `docs/architecture/turret.md`.
+**Play-tested so far:** the Gun Sentry only, but thoroughly — ten thrown over a 2.5 hour
+session, all ten retired cleanly (seven on an empty magazine, three on lifetime), full-circle
+traverse confirmed, and the fire sound now audible. ⚠ *Why* it was silent before was never
+isolated: it had inherited a valid `junkturret_fire` all along, and the explicit per-type sound
+that fixed it was going in regardless. The other five types have not been thrown, and the
+flamethrower's per-shot flame effect still needs a look. Details in
+`docs/architecture/turret.md`.
 
 ## 0.9.0 - 2026-08-01 (Beta)
 

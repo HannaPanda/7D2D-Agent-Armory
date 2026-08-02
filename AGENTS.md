@@ -15,8 +15,9 @@ Modules:
   the player. *Playable.*
 - **Throwable turrets** — a box you throw that deploys an auto-turret where it lands. Six
   variants (gun, machine gun, shotgun, sniper, flamethrower, shock), eight craftable boxes.
-  Single use: fixed ammunition, a lifetime, no picking it back up. *Deploys and fires; sound
-  and the flame effect still need a play test — see `docs/architecture/turret.md`.*
+  Single use: fixed ammunition, a lifetime, no picking it back up. *The gun variant is
+  play-tested end to end, sound included; the other five and the flame effect have not been
+  seen yet — see `docs/architecture/turret.md`.*
 
 Planned: chem launcher, disposable gun drone, hive. The chem launcher and the hive are meant to
 cover healing, which is why there is deliberately **no support turret**.

@@ -220,11 +220,23 @@ Visual distinction is free: `EntityTurret.OnUpdateEntity` reads `TintColor` from
 item's** properties and pushes it into `UpdateLight.SetTintColorForItem`
 (IL_00d2..IL_0159). One prefab, one property, six recognisable turrets.
 
-## Open: fire sound and the flame effect
+## Fire sound: audible, cause of the earlier silence not isolated
 
-**Fire sound — cause not found.** In the first play test the Gun Sentry demonstrably fired
-(120 rounds consumed, "Magazin leer" logged) and was silent. The vanilla path was walked in IL
-and is intact:
+**Resolved for the Gun Sentry** — play test 2026-08-02 evening, ten turrets thrown over 2.5
+hours, sound confirmed audible by ear, and `Patch_TurretFireProbe` reporting
+`sound='Pistol_Fire' particle='gunfire_pistol' muzzle=ok` on every one of them.
+
+⚠ **What made the difference was not established, and the obvious explanation is wrong.** The
+silent turret was not missing its properties: it inherited `FireSound="junkturret_fire"` and
+`ParticlesMuzzleFire="gunfire_junkturret"` from `junkTurretGun`, both valid. The audible one
+sets `Pistol_Fire` / `gunfire_pistol` explicitly. Two differences between those sound nodes
+could matter and neither was isolated — `junkturret_fire` hangs on
+`AudioSource_JunkWeaponFire.prefab` (a different 3D rolloff, not inspectable offline) and caps
+at `MaxVoices=5` against the pistol's 30. A third possibility is that it was quietly audible
+all along and got missed at 10 % master volume. Explicit per-type sounds were required by the
+design anyway, so this was not chased further.
+
+The path itself was never broken, and walking it in IL was the only way to be sure of that:
 
 ```
 Fire() -> if (!IsNullOrEmpty(muzzleFireParticle)) { new ParticleEffect(…, fireSound, …);
@@ -238,10 +250,13 @@ Inside `SpawnParticleEffect` the sound is played *before* any particle resolutio
 because then the whole block in `Fire` is skipped. Never leave `ParticlesMuzzleFire` blank on a
 turret that should be audible.
 
-Static analysis is exhausted. Each turret now sets `FireSound` and `ParticlesMuzzleFire`
-explicitly (needed anyway — the whole point is a different sound per type), and
-`Patch_TurretFireProbe` logs the runtime values once per turret so the next play test answers
-it in one line instead of another round of hypotheses.
+Two things were ruled out along the way and are worth not re-testing: `volumeScale` is a
+hard-coded `1` at the call site (IL_0547), and `-1` as the causing-entity id is what vanilla
+itself passes (IL_0556) — the sound is played before that value is even looked at.
+
+`Patch_TurretFireProbe` stays on until the other five types have been heard; it logs the
+runtime sound, particle and muzzle once per turret, which is one line instead of a round of
+hypotheses. `DBG` goes to `false` before release.
 
 **Flame effect — needs a look, not an argument.** `ParticlesMuzzleFire` is spawned *per shot*,
 and `FireSound` rides along on the same call. That is not a continuous jet. At 240 rounds per

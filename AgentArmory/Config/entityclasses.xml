@@ -277,22 +277,24 @@
 			     verlorene Zeit. -->
 			<property name="WakeUpTime" value="0.25"/>
 
-			<!-- ⚠ SCHUSSTON EXPLIZIT, obwohl `junkturret_fire` von junkTurretGun geerbt
-			     wuerde. Grund: im ersten Spieltest (2026-08-02) hat das Turret nachweislich
-			     gefeuert - das Log zeigt "Turret 43912 abgebaut: Magazin leer", also 120
-			     verbrauchte Schuss - war dabei aber stumm. Der vanilla-Pfad ist per IL
-			     geprueft und intakt:
+			<!-- SCHUSSTON EXPLIZIT, obwohl `junkturret_fire` von junkTurretGun geerbt
+			     wuerde. Erstens faellt er ohnehin pro Turretsorte anders aus, das ist der
+			     Sinn der Uebung. Zweitens war das Turret im ERSTEN Spieltest (2026-08-02
+			     vormittags) stumm, obwohl es nachweislich 120 Schuss verbraucht hat, und
+			     mit dieser Zeile ist es hoerbar (Spieltest 2026-08-02 abends, zehn Turrets).
+			     ⚠ Was davon die Stille verursacht hat, ist NICHT isoliert - geerbt war ein
+			     gueltiges `junkturret_fire`, es fehlte also nichts. Unterschiede, die es
+			     gewesen sein koennen: `junkturret_fire` haengt an
+			     AudioSource_JunkWeaponFire.prefab (andere 3D-Abschwaechung) und deckelt bei
+			     MaxVoices=5, Pistol_Fire bei 30. Wer hier aufraeumen will, aendert genau
+			     eine Sache und hoert nach.
+			     Der vanilla-Pfad selbst ist per IL geprueft und intakt:
 			       Fire() -> ParticleEffect(…, fireSound, …) -> FireControllerUtils.SpawnParticleEffect
 			       -> GameManager.SpawnParticleEffectClient -> ParticleEffect.SpawnParticleEffect
 			       -> PlaySoundInClient -> Audio.Manager.Play
 			     Der Ton wird dort VOR jeder Partikelaufloesung gespielt (IL_0000..IL_004e),
-			     ein fehlendes Partikel kann ihn also nicht schlucken, und der ganze Block
-			     liegt HINTER der Strahlenschleife, haengt also nicht am Treffer.
-			     Die Ursache ist damit NICHT gefunden. Explizit gesetzt wird der Ton trotzdem,
-			     aus zwei Gruenden: er faellt ohnehin pro Turretsorte anders aus (das ist der
-			     Sinn der Uebung), und es nimmt die Vererbung als Fehlerquelle aus der
-			     Rechnung. `Patch_TurretFireProbe` protokolliert beim naechsten Spieltest,
-			     was zur Laufzeit wirklich in fireSound und muzzleFireParticle steht. -->
+			     ein ungueltiges Partikel kann ihn also nicht schlucken - ein LEERES schon,
+			     weil dann der ganze Block in `Fire` uebersprungen wird. -->
 			<property name="FireSound" value="Pistol_Fire"/>
 			<property name="ParticlesMuzzleFire" value="gunfire_pistol"/>
 		</entity_class>
