@@ -258,8 +258,70 @@ itself passes (IL_0556) — the sound is played before that value is even looked
 runtime sound, particle and muzzle once per turret, which is one line instead of a round of
 hypotheses. `DBG` goes to `false` before release.
 
-**Flame effect — needs a look, not an argument.** `ParticlesMuzzleFire` is spawned *per shot*,
-and `FireSound` rides along on the same call. That is not a continuous jet. At 240 rounds per
-minute the flame turret produces four bursts a second, which may read as a pulsing flamethrower
-or as a strobe. If it looks wrong, the fix is a looping particle plus `flametrap_lp` started and
-stopped from C# while the turret fires, and both properties move to empty.
+## The flame turret does its own muzzle effect
+
+Play test 2026-08-03: the flame turret produced **an unbounded, growing pile of flames** that
+stayed in the world after the turret was gone. Not a strobe, not a balance question — a leak. The
+per-shot spawn was the wrong mechanism from the start, and three properties of vanilla's call
+explain why. From `MiniTurretFireController.Fire`, IL_0503..IL_055C:
+
+```
+if (!IsNullOrEmpty(muzzleFireParticle))
+    FireControllerUtils.SpawnParticleEffect(
+        new ParticleEffect(muzzleFireParticle, Muzzle.position + Origin.position,
+                           Muzzle.rotation, 1f, Color.white, fireSound, null, 1f, ""), -1);
+```
+
+1. **The `-1` disables the recycler.** `ParticleEffect.SpawnParticleEffect` keeps a per-entity
+   list and, past `cEntitySameParticleMax` copies of the same particle, repositions the oldest
+   instead of adding another — but only when it is given a real entity id. IL_006F takes `-1`
+   straight to the instantiate path. There is no cap.
+2. **Cleanup is the prefab's own job.** `gunfire_pistol` is a one-shot and disposes of itself.
+   `flame_hazard` is the pipe-hazard burner (`pipeFireHazard*` in vanilla `blocks.xml`) and runs
+   forever by design. Four rounds a second therefore meant four eternal flames a second.
+3. **No parent means no owner.** With no parent transform the copy is attached to the global
+   `ParticleEffect.RootT` (IL_0377) at one moment's world position and rotation. It does not
+   turn with the barrel, and nothing destroys it when the turret goes.
+
+`TurretFlameJet` replaces it with **one** copy, created on the first shot as a child of the
+`Muzzle` transform — the same mechanism vanilla's own `AttachParticleEffectToEntity` uses for
+persistent particles on entities (IL_029A: `SetParent(parent, false)` plus a local offset and
+rotation). Being a child settles three problems at once for free: it turns with the barrel, it
+survives an origin shift, and it is destroyed with the turret's model. A leftover after teardown
+is now structurally impossible rather than merely handled.
+
+On/off is driven from the shot itself: the `Fire` postfix stamps a timestamp, the per-frame tick
+stops emission once `LingerSeconds` (0.45 s) have passed without one. That threshold has to stay
+above the shot interval — at 240 rounds per minute that is 0.25 s — or the jet flickers at the
+fire rate, which is the strobe this was supposed to avoid. `StopEmitting` rather than
+`StopEmittingAndClear`, so the flame burns out instead of blinking off.
+
+**Ammunition already behaves the way a fuel tank should.** Vanilla decrements `AmmoCount` once
+per `Fire` (IL_0612..IL_0624), and `Fire` only runs while there is a target — so fuel drains
+while burning and holds while idle, with no extra code.
+
+Vanilla's per-shot spawn is switched off in `Patch_TurretFlameJet` by blanking the controller's
+`muzzleFireParticle` field, not by an empty XML property. The XML route would depend on how
+`DynamicProperties` resolves an empty value against the one inherited from `junkTurretGun` — an
+assumption, where the code is provable: IL_0503 tests `IsNullOrEmpty` and skips the whole block.
+That block holds the fire *sound* too, which is why `agentTurretFlame` carries no `FireSound`;
+`flametrap_lp` is started and stopped as a loop instead (`Loop="true"`, vanilla
+`sounds.xml:12535`), with `flametrap_start` / `flametrap_end` on the edges.
+
+The looping sound is the one part that does **not** die with the model — it hangs on the entity id
+in the audio manager. `TurretRetire` stops it explicitly, and the tick stops it as well when it
+finds the particle transform gone, which covers teardown paths we never see (chunk unload).
+
+⚠ **One number in the XML is inferred, not measured: `AgentFlameJetRotation="0,-90,0"`.** The
+prefab is taken to emit along its local **+X**, because the hazard blocks place the particle at
+`ParticleOffset` and lay the damage volume out towards +X from there (`DamageOffset="1,0,0"` with
+`DamageSize="3,1,1"` on the 3 m pipe). A muzzle transform faces +Z, and `0,-90,0` maps +X onto
++Z. If the jet comes out sideways, `0,90,0` is the counter-test; backwards means adding 180. All
+of the geometry sits in `entityclasses.xml`, so a wrong guess costs an XML edit and not a
+rebuild, and `[AgentArmoryFlame]` logs the values actually used, once per turret.
+
+⚠ **Multiplayer: the jet is host-only.** `Fire` returns early on a client (IL_0000), so the
+trigger never arrives there, and an `Object.Instantiate` is not replicated the way
+`SpawnParticleEffectServer` is. Making it show on remote clients needs the effect driven from a
+replicated signal — a buff with `AttachParticleEffectToEntity`, or a net package. Untested either
+way; nothing else in this module has been exercised in multiplayer.

@@ -379,18 +379,17 @@
 		<!-- ============================================================
 		     AGENT TURRET - Flammenwerfer. Kein Schaden aus der Kugel, sondern aus dem Buff.
 		     ============================================================
-		     ⚠ DAS IST DER EINZIGE TURRET-TYP MIT EINEM OFFENEN OPTIK-/AUDIORISIKO.
-		     `ParticlesMuzzleFire` wird PRO SCHUSS gespawnt (`FireControllerUtils.
-		     SpawnParticleEffect` am Ende von `Fire`), und `FireSound` haengt am selben
-		     Aufruf. Ein Dauerstrahl ist das nicht. Bei 240 Schuss/Minute (4/s) ergibt das
-		     ein Stossfeuer mit vier Flammenstoessen pro Sekunde - das KANN gut aussehen und
-		     klingen oder wie ein Stroboskop wirken. Das entscheidet ein Blick, nicht eine
-		     Ueberlegung. Wenn es stoert, ist die Loesung ein Loop-Partikel plus
-		     `flametrap_lp` als Schleife, beides in C# an- und abgeschaltet, solange das
-		     Turret feuert - dann gehoeren `ParticlesMuzzleFire` und `FireSound` hier
-		     auf leer.
-		     Die Kadenz ist bewusst niedriger als bei einem echten Flammenwerfer gewaehlt,
-		     genau damit die Einzelstoesse noch als solche lesbar sind. -->
+		     ⚠ HIER STEHT ABSICHTLICH KEIN `FireSound` UND KEIN `ParticlesMuzzleFire`.
+		     Der vanilla-Weg ist fuer eine Flamme der falsche: beide Werte haengen an EINEM
+		     `new ParticleEffect(...)` am Ende von `Fire`, das PRO SCHUSS ein neues Exemplar in
+		     die Welt setzt - ohne Elternteil, ohne Obergrenze, und nur dann von selbst
+		     verschwindend, wenn der Effekt ein Einmaleffekt ist. `flame_hazard` ist keiner: es
+		     ist der Dauerbrenner der Rohr-Hazards und laeuft endlos. Vier Schuss pro Sekunde
+		     ergaben so vier ewige Flammen pro Sekunde, an fester Weltposition, und sie blieben
+		     auch nach dem Abbau des Turrets stehen (Spieltest 2026-08-03).
+		     Stattdessen macht `TurretFlameJet` (C#) EIN Exemplar als Kind des
+		     `Muzzle`-Transforms und schaltet es mit dem Feuern an und aus. Die volle
+		     Begruendung samt IL-Belegen steht dort; die Stellschrauben stehen hier. -->
 		<entity_class name="agentTurretFlame" extends="junkTurretGun">
 			<property name="Tags" value="turret,turretRanged,deployed,noMedBuffs,agentTurret"/>
 			<property name="MaxDistance" value="6"/>
@@ -408,8 +407,30 @@
 			     Beide Buffs sind vanilla und werden vom `flamethrowerTrap` genauso benutzt -
 			     kein eigener Buff noetig, keine eigene Balance-Baustelle. -->
 			<property name="Buff" value="buffBurningHazardPlayer,buffHazard_Slow"/>
-			<property name="FireSound" value="flametrap_start"/>
-			<property name="ParticlesMuzzleFire" value="flame_hazard"/>
+
+			<!-- ==== Dauerflamme, gelesen von TurretFlameJet ==============================
+			     `flame_hazard` ist genau die lange, waagerechte Flamme der Rohr-Hazards in
+			     POIs (blocks.xml, `pipeFireHazardBlack2m` und Verwandte).
+			     ⚠ DIE DREHUNG IST DIE EINE ZAHL, DIE EIN BLICK BESTAETIGEN MUSS. Das Prefab
+			     stoesst entlang seiner LOKALEN +X-Achse aus - erschlossen, nicht gemessen: die
+			     Hazard-Bloecke setzen das Partikel an `ParticleOffset` und legen die
+			     Schadenszone von dort aus nach +X (`DamageOffset="1,0,0"` mit
+			     `DamageSize="3,1,1"` beim 3-m-Rohr). Das Muzzle-Transform zeigt wie jedes
+			     Unity-Transform nach +Z. `0,-90,0` dreht +X auf +Z, die Flamme laeuft also das
+			     Rohr entlang. Steht sie quer, ist `0,90,0` der Gegenversuch; zeigt sie nach
+			     hinten, `0,180,0` zusaetzlich. Kein Rebuild noetig, nur diese Zeile.
+			     Der Offset ist die Laenge vor der Muendung, in Metern, im lokalen System des
+			     Rohrs - z bei dieser Drehung nach VORNE. -->
+			<property name="AgentFlameJet" value="flame_hazard"/>
+			<property name="AgentFlameJetRotation" value="0,-90,0"/>
+			<property name="AgentFlameJetOffset" value="0,0,0.1"/>
+			<property name="AgentFlameJetScale" value="1"/>
+			<!-- `flametrap_lp` ist in sounds.xml:12535 mit `Loop="true"` deklariert, wird also
+			     einmal gestartet und einmal gestoppt. Start- und Endton sind dieselben, die die
+			     Hazard-Bloecke benutzen. -->
+			<property name="AgentFlameJetSound" value="flametrap_lp"/>
+			<property name="AgentFlameJetStartSound" value="flametrap_start"/>
+			<property name="AgentFlameJetStopSound" value="flametrap_end"/>
 		</entity_class>
 
 		<!-- ============================================================

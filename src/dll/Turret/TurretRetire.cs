@@ -13,6 +13,9 @@ public static class TurretRetire
         if (turret == null || turret.IsDead()) return;
 
         TurretLifetime.Forget(turret.entityId);
+        // Das Partikelexemplar stirbt mit dem Modell des Turrets, der Schleifenton nicht -
+        // der haengt an der Entity-Id im Audio-Manager und braucht ein ausdrueckliches Stop.
+        TurretFlameJet.Forget(turret);
 
         // Aus der Besitzerliste nehmen. Nicht toedlich, wenn es unterbleibt - die Zaehlschleife
         // in `EntityTurret.OnUpdateEntity` holt jede Id ueber `world.GetEntity` und ueberspringt

@@ -2,6 +2,38 @@
 
 ## Unreleased
 
+**The flame turret now burns one flame instead of accumulating them.** Thrown into a fight it
+produced a growing pile of flames at fixed world positions that stayed there after the turret
+itself was gone. Cause, not guesswork: `MiniTurretFireController.Fire` spawns the muzzle effect
+once *per shot* and passes `-1` as the causing entity, which is exactly the value that switches
+off vanilla's own per-entity recycling cap (IL_006F). Cleanup is left to the prefab — fine for
+`gunfire_pistol`, which is a one-shot, and fatal for `flame_hazard`, which is the pipe-hazard
+burner and runs forever. Four rounds a second meant four eternal flames a second, and with no
+parent transform each one was pinned to the global particle root at one moment's position.
+
+- **Fix: `TurretFlameJet` makes one copy, as a child of the `Muzzle` transform**, using the same
+  mechanism vanilla's `AttachParticleEffectToEntity` uses for persistent particles on entities.
+  Being a child means it turns with the barrel, survives an origin shift, and is destroyed with
+  the turret's model — a leftover after teardown is now impossible rather than cleaned up.
+- **Emission follows the shot:** on with the first round, off 0.45 s after the last. The delay has
+  to exceed the 0.25 s shot interval or the jet flickers at the fire rate. Existing particles burn
+  out rather than blinking off.
+- `flametrap_lp` runs as a **loop** (one start, one stop) with `flametrap_start` / `flametrap_end`
+  on the edges, instead of re-triggering `flametrap_start` four times a second.
+- Vanilla's per-shot spawn is switched off by blanking the controller field, not by an empty XML
+  property, because IL_0503 tests `IsNullOrEmpty` and skips the block provably — where an empty
+  XML value would only *probably* override the one inherited from `junkTurretGun`.
+- Ammunition needed no change: vanilla already decrements it once per shot, and shots only happen
+  while there is a target, so fuel drains while burning and holds while idle.
+- Position, rotation, scale and all three sounds are `<property>` entries on the entity class,
+  because one of them is a guess (see below) and a guess should cost an XML edit.
+
+⚠ **The flame's rotation is inferred, not measured.** `flame_hazard` is taken to emit along its
+local +X — read off the hazard blocks, which lay their damage volume out towards +X from the
+particle offset — and `0,-90,0` turns that onto the muzzle's forward axis. If the jet comes out
+sideways in play, `0,90,0` is the counter-test. Also **host-only in multiplayer**: `Fire` returns
+early on clients, so the trigger never reaches them.
+
 **A thrown charge now deploys where it lands, not where it grazes.** Standing on a narrow
 ledge and throwing the Cluster Seeker down over the edge left the pod hanging in mid-air on
 the tile you were standing on; only a throw aimed well away from you worked.
@@ -96,13 +128,13 @@ perk that matches its ammunition.
   the timed charge this box extends has **no `ExplodeOnHit` and `StickPercent=1`**, so without
   correction the box would have stuck to walls and built its turret in mid-air.
 
-**Play-tested so far:** the Gun Sentry only, but thoroughly — ten thrown over a 2.5 hour
-session, all ten retired cleanly (seven on an empty magazine, three on lifetime), full-circle
-traverse confirmed, and the fire sound now audible. ⚠ *Why* it was silent before was never
-isolated: it had inherited a valid `junkturret_fire` all along, and the explicit per-type sound
-that fixed it was going in regardless. The other five types have not been thrown, and the
-flamethrower's per-shot flame effect still needs a look. Details in
-`docs/architecture/turret.md`.
+**Play-tested so far:** the Gun Sentry thoroughly — ten thrown over a 2.5 hour session, all ten
+retired cleanly (seven on an empty magazine, three on lifetime), full-circle traverse confirmed,
+fire sound audible. ⚠ *Why* it was silent before was never isolated: it had inherited a valid
+`junkturret_fire` all along, and the explicit per-type sound that fixed it was going in
+regardless. The flamethrower has been thrown once, which is what turned up the flame leak fixed
+above; the rebuilt jet has **not** been seen yet, and its rotation is a reasoned guess. The other
+four types have not been thrown at all. Details in `docs/architecture/turret.md`.
 
 ## 0.9.0 - 2026-08-01 (Beta)
 

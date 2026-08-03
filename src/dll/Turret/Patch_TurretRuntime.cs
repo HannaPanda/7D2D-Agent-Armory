@@ -33,7 +33,14 @@ public static class Patch_TurretRuntime
 
     static void Postfix(EntityTurret __instance)
     {
-        if (!IsAgentTurret(__instance) || __instance.IsDead()) return;
+        if (!IsAgentTurret(__instance)) return;
+
+        // ---- (0) Dauerflamme -----------------------------------------------------------
+        // Vor der Server-Pruefung und vor dem IsDead-Ausstieg: die Flamme ist ein sichtbarer
+        // Effekt, und sie muss auch dann ausgehen, wenn das Turret gerade stirbt.
+        TurretFlameJet.Tick(__instance);
+
+        if (__instance.IsDead()) return;
 
         // ---- (1) Den Aktivzaehler dauerhaft aushebeln ----------------------------------
         // `OnUpdateEntity` rechnet pro Frame:

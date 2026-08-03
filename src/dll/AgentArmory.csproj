@@ -60,6 +60,11 @@
       <HintPath>$(SdtdManaged)\UnityEngine.PhysicsModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <!-- Fuer ParticleSystem (Dauerflamme des Flammenturrets an- und ausschalten). -->
+    <Reference Include="UnityEngine.ParticleSystemModule">
+      <HintPath>$(SdtdManaged)\UnityEngine.ParticleSystemModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
 
 </Project>
