@@ -451,7 +451,8 @@
 			<property name="TurretEntity" value="agentTurretShock"/>
 			<property name="TurretCoreItem" value="agentTurretCoreShock"/>
 			<property name="TurretAmmoIndex" value="0"/>
-			<property name="TurretAmmoCount" value="60"/>
+			<!-- 150 Zellen bei 2 Schuss/s = 75 s, also genau die Lebenszeit. -->
+			<property name="TurretAmmoCount" value="150"/>
 			<property name="TurretLifetime" value="75"/>
 			<property name="EconomicValue" value="950"/>
 		</item>
@@ -508,9 +509,17 @@
 			<property name="EconomicValue" value="1"/>
 
 			<effect_group name="ammoAgentShockCell" tiered="false">
-				<!-- Bewusst niedrig: das Schockturret kauft Zeit, es toetet nicht. Der Wert
-				     liegt unter dem einer einzelnen 9mm-Kugel. -->
-				<passive_effect name="EntityDamage" operation="base_set" value="6" tags="perkElectrocutioner"/>
+				<!-- 40 je Schuss bei 120 Schuss/Minute sind 80 Schaden/s und ueber 150 Zellen
+				     ein Gesamtbudget von 6000 - knapp die Haelfte des MG- und des
+				     Flammenturrets. Das ist der Preis fuer die beste Kontrolle der Reihe:
+				     14 m Reichweite, Rundumsicht und ein Ziel, das 4 s lang auf ein Zehntel
+				     seines Tempos faellt.
+				     ⚠ DER WERT STAND BIS ZUM 2026-08-03 AUF 6, also 9 Schaden/s. Zusammen mit
+				     einem Schockbuff, der an Zombies nichts tat, ergab das ein Turret, das
+				     seine 75 s abstand, ohne etwas zu bewirken.
+				     150 Zellen bei 2 Schuss/s sind genau die 75 s Lebenszeit: Tank und Uhr
+				     laufen zusammen ab, das Turret verschwindet nicht mit halbem Magazin. -->
+				<passive_effect name="EntityDamage" operation="base_set" value="40" tags="perkElectrocutioner"/>
 				<passive_effect name="BlockDamage" operation="base_set" value="0" tags="perkElectrocutioner"/>
 				<passive_effect name="BlockDamage" operation="base_add" value="100" tags="barrelExplosive"/>
 				<passive_effect name="MaxRange" operation="base_set" value="14" tags="perkElectrocutioner"/>
@@ -634,8 +643,8 @@
 				<property name="Magazine_items" value="ammoAgentShockCell"/>
 			</property>
 			<effect_group name="agentTurretCoreShock" tiered="false">
-				<passive_effect name="RoundsPerMinute" operation="base_set" value="90" tags="perkElectrocutioner"/>
-				<passive_effect name="MagazineSize" operation="base_set" value="60" tags="perkElectrocutioner"/>
+				<passive_effect name="RoundsPerMinute" operation="base_set" value="120" tags="perkElectrocutioner"/>
+				<passive_effect name="MagazineSize" operation="base_set" value="150" tags="perkElectrocutioner"/>
 				<passive_effect name="JunkTurretActiveRange" operation="base_set" value="35"/>
 			</effect_group>
 		</item>

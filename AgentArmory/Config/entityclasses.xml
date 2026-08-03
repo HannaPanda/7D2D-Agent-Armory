@@ -453,9 +453,11 @@
 		<!-- ============================================================
 		     AGENT TURRET - Schock. Crowd Control statt Schaden.
 		     ============================================================
-		     Derselbe Hebel wie beim Flammenwerfer, nur mit Elektrizitaet: der Schaden ist
-		     bewusst klein, die Wirkung steckt im Buff. Damit ist es das Turret, das man
-		     wirft, um Zeit zu kaufen, nicht um zu toeten. -->
+		     Das Turret, das man wirft, um Zeit zu kaufen. Der Schaden liegt unter dem der
+		     anderen, aber nicht mehr weit darunter: "macht ja gar nix" war der Befund vom
+		     2026-08-03, und die Ursache war dieselbe wie beim Flammenwerfer - die Wirkung
+		     steckte in einem Buff, der nichts tat. Jetzt traegt vanillas `buffShocked` die
+		     Kontrolle und der Strahlschaden das Gewicht. -->
 		<entity_class name="agentTurretShock" extends="junkTurretGun">
 			<property name="Tags" value="turret,turretRanged,deployed,noMedBuffs,agentTurret"/>
 			<property name="MaxDistance" value="14"/>
@@ -464,16 +466,36 @@
 			<property name="TurnSpeed" value="32"/>
 			<property name="RaySpread" value="2"/>
 			<property name="WakeUpTime" value="0.2"/>
-			<!-- Eigener Schockbuff statt des vanilla `buffShocked`. Grund: dessen Schaden
-			     wird ueber `ItemHasTags tags="stunBaton"` und die CVar `_droneStunDamage`
-			     entschieden (vanilla buffs.xml ab Zeile 6574). Wer ihn direkt benutzt,
-			     laesst fremden Kontext bestimmen, wie hart das eigene Turret zuschlaegt.
-			     ⚠ `buffHazard_Slow` verlangsamt NUR DEN SPIELER (alles hinter einem
-			     `EntityTagCompare tags="player"`). Es bleibt fuer genau diesen Fall stehen;
-			     die Verlangsamung der Zombies - der einzige Zweck dieses Turrets - steckt
-			     seit dem 2026-08-03 in `buffAgentShock` selbst. -->
-			<property name="Buff" value="buffAgentShock,buffHazard_Slow"/>
-			<property name="FireSound" value="drone_attack_stun"/>
+			<!-- Vanillas `buffShocked`, und zwar nach zwei Fehlversuchen mit eigenen Buffs.
+			     Er ist der SCHOCK, nicht eine Annaeherung daran: 90 Prozent Verlangsamung mit
+			     Abklingen auf 5 ueber die Buffdauer (vanilla buffs.xml ab 6763, die Gruppe
+			     hinter `$shockDurationMax GTE 4`), das Partikel `p_electric_shock` am Spine,
+			     der Ton `electric_fence_impact`, und `HealthChangeOT base_add -5`.
+			     ⚠ ER WURDE FRUEHER AUS EINEM FALSCHEN GRUND GEMIEDEN. Die Sorge war, sein
+			     Schaden haenge an fremdem Kontext (`ItemHasTags tags="stunBaton"`,
+			     `perkIntelMaster5`, `_droneStunDamage`). Nachgelesen: die unbedingte Zeile
+			     "Not a Stun Baton" setzt `$buffShockedDamage` zuerst auf -5, und alle drei
+			     Erhoehungen haengen an Bedingungen, die hier nie zutreffen - unser Kern-Item
+			     traegt kein `stunBaton`, und die beiden CVars sitzen an der GESCHOCKTEN Entity,
+			     also am Zombie. Der Schaden ist damit fest -5. Die Vorsicht hat das Turret
+			     seine ganze Wirkung gekostet.
+			     Selbstbegrenzung inklusive: laeuft der Buff aus, setzt vanilla
+			     `buffShockImmune` (5 s, `BuffResistance base_set 2`, auf 0..1 geklemmt = volle
+			     Immunitaet). `ItemActionAttack.Hit` uebergibt `_netSync = true` (IL_0e4c),
+			     also greift die Immunitaetspruefung in `AddBuff` (IL_004C) wirklich. Ergibt
+			     4 s Schock, 5 s Ruhe je Ziel - kein Dauer-Stunlock, ohne eigenes Zutun.
+			     `buffHazard_Slow` ist hier entfallen: `buffShocked` verlangsamt ungegattert,
+			     also auch den Spieler, der in den eigenen Strahl laeuft. -->
+			<property name="Buff" value="buffShocked"/>
+			<!-- ⚠ NICHT `drone_attack_stun`. Der Name klingt nach Elektrizitaet, ist aber eine
+			     SPRACHAUSGABE: `AudioSource_VO_Drone.prefab` mit Clips aus `Sounds/VO/Drone/`
+			     (vanilla sounds.xml:18639). Bei 120 Schuss/Minute hat das Turret damit
+			     zweimal pro Sekunde eine Drohnen-Sprachzeile gesprochen - im Spielbericht vom
+			     2026-08-03 "das redet die ganze Zeit". `stunbaton_hit4` ist ein einzelner
+			     Elektro-Impuls an `AudioSource_Impact_Large`, und er liegt tonal unter dem
+			     `electric_fence_impact`, das `buffShocked` am Ziel spielt: Schuss und
+			     Einschlag bleiben unterscheidbar. -->
+			<property name="FireSound" value="stunbaton_hit4"/>
 			<!-- Es gibt in vanilla KEIN Elektro-Muendungsfeuer: die vollstaendige Liste der in den
 			     Konfigurationsdateien referenzierten Partikelnamen enthaelt nur Waffen-, Feuer-,
 			     Baum- und Fahrzeugeffekte. Deshalb der neutrale Maschinen-Flash des Junk Turret.

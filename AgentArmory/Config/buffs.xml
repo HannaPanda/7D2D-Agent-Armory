@@ -128,50 +128,15 @@
 			</effect_group>
 		</buff>
 
-		<!-- ============================================================
-		     SCHOCK-EFFEKT des Schockturrets.
-		     ============================================================
-		     Eigener Buff statt des vanilla `buffShocked`. Der ist zwar genau der richtige
-		     Effekt - 4 s, `damage_type electrical`, `stack_type duration`, und TFP hat den
-		     Fall "Maschine schockt Zombie" mit dem Drohnen-Stun-Mod selbst vorgesehen -,
-		     aber sein SCHADEN wird ueber fremden Kontext entschieden: `ItemHasTags
-		     tags="stunBaton"`, `ProgressionLevel perkIntellectMastery` und die CVar
-		     `_droneStunDamage` (vanilla buffs.xml ab Zeile 6574). Wer ihn direkt anhaengt,
-		     laesst also den Stun-Baton-Skillbaum des Spielers bestimmen, wie hart ein
-		     geworfenes Turret zuschlaegt - und faengt sich jede spaetere TFP-Aenderung
-		     daran ein.
+		<!-- Hier stand bis zum 2026-08-03 `buffAgentShock`, ein eigener Schockbuff. Er ist
+		     ENTFALLEN, weil vanillas `buffShocked` das Richtige tut und meine Begruendung, ihn
+		     zu meiden, nachweislich falsch war - die vollstaendige Nachlese steht am
+		     `Buff`-Eintrag von `agentTurretShock` in entityclasses.xml. Kurz: der Schaden von
+		     `buffShocked` haengt in unserem Fall an keinem fremden Kontext, er ist fest -5, und
+		     der Buff bringt Verlangsamung, Partikel, Ton und eine Immunitaetspause mit, die ich
+		     alle selbst haette nachbauen muessen. Kein Ersatz noetig: `Buff` an der entity_class
+		     nennt jetzt direkt `buffShocked`. -->
 
-		     Bewusst NICHT von buffShocked geerbt: `<buff>` kennt kein `extends`, und eine
-		     Kopie mit den drei Fremdverzweigungen waere schlimmer als eine eigene, kurze
-		     Fassung.
-
-		     `stack_type duration` heisst: ein zweiter Treffer verlaengert, statt zu stapeln.
-		     Genau richtig fuer ein Turret, das mehrfach pro Sekunde trifft - sonst haette
-		     ein einzelner Zombie nach zwei Sekunden hundert Stapel. -->
-		<buff name="buffAgentShock" name_key="buffAgentShock" description_key="buffAgentShockDesc"
-		      icon="ui_game_symbol_electric_power" icon_color="120,180,240">
-			<damage_type value="electrical"/>
-			<stack_type value="duration"/>
-			<duration value="3"/>
-			<update_rate value="1"/>
-			<effect_group>
-				<!-- Kleiner Schaden pro Sekunde. Die Wirkung dieses Turrets ist die
-				     Verlangsamung, nicht das hier. -->
-				<triggered_effect trigger="onSelfBuffUpdate" action="ModifyStats" stat="Health"
-					operation="add" value="-2"/>
-			</effect_group>
-			<effect_group>
-				<!-- ⚠ HIER liegt der eigentliche Zweck des Schockturrets, und er lag bis zum
-				     2026-08-03 brach: die Verlangsamung stand als `buffHazard_Slow` an der
-				     entity_class, und der Buff ist komplett spielergegattert (Begruendung im
-				     Block bei `buffAgentFlameBurn` oben). Ein Turret, dessen einzige Aufgabe
-				     Crowd Control ist, hat Zombies also nie gebremst.
-				     Haerter als beim Flammenturret, weil dieses Turret nichts anderes kann. -->
-				<requirement name="!EntityTagCompare" tags="player"/>
-					<passive_effect name="WalkSpeed" operation="perc_subtract" value=".5"/>
-					<passive_effect name="RunSpeed" operation="perc_subtract" value=".5"/>
-			</effect_group>
-		</buff>
 
 	</append>
 </configs>

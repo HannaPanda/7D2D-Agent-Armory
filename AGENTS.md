@@ -15,11 +15,11 @@ Modules:
   the player. *Playable.*
 - **Throwable turrets** — a box you throw that deploys an auto-turret where it lands. Six
   variants (gun, machine gun, shotgun, sniper, flamethrower, shock), eight craftable boxes.
-  Single use: fixed ammunition, a lifetime, no picking it back up. *The gun variant is
-  play-tested end to end, sound included. The flamethrower has been through two rounds of fixes —
-  one persistent jet instead of one per shot, then a measured muzzle offset and a tenfold damage
-  correction after its borrowed vanilla buffs turned out to be player-only; neither correction has
-  been seen in play. Four types have never been thrown — see `docs/architecture/turret.md`.*
+  Single use: fixed ammunition, a lifetime, no picking it back up. *The gun and flamethrower
+  variants are play-tested end to end; the flamethrower took three rounds to get there. The shock
+  turret has been thrown once and was broken in three ways — voice-over as its fire sound, a shock
+  buff that did not shock, and damage set too low — all fixed but unseen. MG, shotgun and sniper
+  have never been thrown. See `docs/architecture/turret.md`.*
 
 Planned: chem launcher, disposable gun drone, hive. The chem launcher and the hive are meant to
 cover healing, which is why there is deliberately **no support turret**.
@@ -68,12 +68,17 @@ cover healing, which is why there is deliberately **no support turret**.
   `python -c "import xml.etree.ElementTree as ET,glob;[ET.parse(f) for f in glob.glob('*.xml')]"`.
   The damage is not local — one bad file drops out of the load entirely, and every other file
   that names one of its items then fails too, pointing at something that is perfectly fine.
-- **Read a vanilla buff's `effect_group` requirements before borrowing it.** "The vanilla fire
-  traps use this pair, so it needs no balancing of ours" cost the flame turret its damage and the
-  shock turret its entire purpose: `buffHazard_Slow` is gated `EntityTagCompare tags="player"` end
-  to end and does *nothing* to a zombie, and `buffBurningHazardPlayer`'s non-player branch is 2
-  HP/s. A hazard, a trap and a weapon are three different audiences. Reasoning in
+- **Read a vanilla buff before borrowing it — and before refusing it.** This cost two rounds in
+  opposite directions. Borrowed without reading: `buffHazard_Slow` is gated
+  `EntityTagCompare tags="player"` end to end and does *nothing* to a zombie, which cost the flame
+  turret its damage and the shock turret its purpose. Refused without reading: `buffShocked` looked
+  like it took its damage from foreign context, but every one of those branches has a requirement a
+  thrown turret never meets, so avoiding it cost the shock turret the actual shock. A hazard, a
+  trap and a weapon are three different audiences — check which one you are. Reasoning in
   `docs/architecture/turret.md`.
+- **A vanilla sound name can lie about what it is.** `drone_attack_stun` reads as electrical and is
+  voice-over: `AudioSource_VO_Drone.prefab`, clips from `Sounds/VO/Drone/`. Check the
+  `SoundDataNode`'s `AudioSource` and clip paths, not the name.
 - **Every item needs a `Meshfile`**, even a pure data carrier that never reaches an inventory
   (`ItemClassesFromXml.parseItem` throws when `CanHold()` and the property is absent, and
   `CanHold` defaults to true). Same for `Material`.

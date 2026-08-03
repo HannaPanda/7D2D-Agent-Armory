@@ -2,6 +2,41 @@
 
 ## Unreleased
 
+**The shock turret shocks now — and it was talking at you.** Play test 2026-08-03: "das macht ja
+gar nix. Das redet die ganze Zeit, trifft mit blauem Schaden, aber nur super wenig und schockt
+nicht." Three separate defects, all confirmed by reading rather than guessing.
+
+- **It was literally talking.** `FireSound` was `drone_attack_stun`, which sounds like an
+  electrical name and is not: it hangs on `AudioSource_VO_Drone.prefab` and plays clips from
+  `Sounds/VO/Drone/` (vanilla `sounds.xml:18639`). **VO is voice-over** — the turret played a drone
+  voice line once per shot. Now `stunbaton_hit4`, a single electrical impulse that sits tonally
+  below the `electric_fence_impact` the shock buff plays on the target.
+- **It never shocked, because avoiding vanilla `buffShocked` was a mistake.** That buff was skipped
+  on the grounds that its damage depends on foreign context (`stunBaton` tags, `perkIntelMaster5`,
+  `_droneStunDamage`). Reading it: the unconditional line sets `$buffShockedDamage = -5` first, all
+  three raises sit behind requirements we never meet — `ItemHasTags` tests the *attacking* item and
+  our core carries no such tag, and the two CVars live on the *shocked* entity, i.e. the zombie. So
+  it is a flat −5/s here, and it brings a 90 % slow decaying to 5 %, the `p_electric_shock`
+  particle and a sound, all of which the hand-written replacement lacked.
+  It also brings a self-limiter: `buffShockImmune` (5 s, total immunity, since `HasImmunity` clamps
+  `BuffResistance 2` to 1) applies because `Hit` passes `_netSync = true`. 4 s shocked, 5 s clear,
+  per target — no stunlock, no tuning of ours.
+- **Damage from 6 to 40** per hit, 90 → 120 rounds/minute, 60 → 150 cells: 80 damage/s and a 6 000
+  budget, about half the MG and flame turrets, paid back in control. The 150 cells at 2 rounds/s
+  come to exactly the 75 s lifetime.
+- `buffAgentShock` and its localization are **removed**, and `buffHazard_Slow` with them —
+  `buffShocked` slows without a player gate, so it covers the player in their own beam too.
+
+The lesson is not "prefer vanilla buffs". Two rounds earlier the flamethrower broke by borrowing a
+vanilla buff *without reading it*; this one broke by refusing one without reading it. Same missing
+step, opposite direction.
+
+**The flame turret is confirmed good.** Play test 2026-08-03: "ordentlichen Schaden", flame out of
+the muzzle, turning with the barrel, and the short 6 m reach turned out to be the point rather than
+a cost — it is a chokepoint weapon, placed in front of a door a horde is funnelled through. The
+visible gap between nozzle and flame start is **kept on purpose** (a real flamethrower has one), so
+it is now documented as intended and not as a residual defect.
+
 **The flame turret does real damage now, and the shock turret finally slows anything.** Play test
 2026-08-03: the flamethrower took forever to kill anything while the MG turret with HP ammunition
 cut through blood-moon hordes. This was not a balance number set too low — it was a design built
@@ -181,12 +216,10 @@ perk that matches its ammunition.
 retired cleanly (seven on an empty magazine, three on lifetime), full-circle traverse confirmed,
 fire sound audible. ⚠ *Why* it was silent before was never isolated: it had inherited a valid
 `junkturret_fire` all along, and the explicit per-type sound that fixed it was going in
-regardless. The flamethrower has been thrown twice: the first throw turned up the flame leak, the
-second confirmed one flame that turns with the barrel and turned up both the height offset and the
-damage problem fixed above. Neither the corrected position nor the new damage has been seen yet.
-The other four types have not been thrown at all, so the shock turret's slow — which never worked
-and is now fixed — has never been observed either way. Details in
-`docs/architecture/turret.md`.
+regardless. The **flamethrower is confirmed working end to end** after three rounds of fixes —
+damage, flame position, one flame, rotation, sound. The **shock turret has been thrown once** and
+was broken in three ways (see above); the fixes have **not** been seen. MG, shotgun and sniper have
+never been thrown at all. Details in `docs/architecture/turret.md`.
 
 ## 0.9.0 - 2026-08-01 (Beta)
 

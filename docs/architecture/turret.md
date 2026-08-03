@@ -65,10 +65,38 @@ proc chance from PassiveEffect 195, base 1.0 — so always.
 This is how the flamethrower and the shock turret get their exotic effects, and neither needed a
 line of C#.
 
-The shock turret uses **our own** buff rather than vanilla `buffShocked`, because the latter
-decides its damage from `ItemHasTags tags="stunBaton"`, `perkIntellectMastery` and the CVar
-`_droneStunDamage` — i.e. the player's stun-baton build would determine how hard a thrown
-turret hits.
+### ⚠ Being too careful with a vanilla buff cost the shock turret everything
+
+The shock turret spent two rounds on **our own** `buffAgentShock` rather than vanilla
+`buffShocked`, on the reasoning that the latter decides its damage from foreign context:
+`ItemHasTags tags="stunBaton"`, `perkIntelMaster5` and the CVar `_droneStunDamage`. The caution
+was misplaced, and reading the buff instead of skimming it would have shown that:
+
+- The line that sets the damage first is **unconditional** — `$buffShockedDamage = -5`, the
+  "Not a Stun Baton" case. All three raises sit behind requirements.
+- `ItemHasTags` tests the attacking item, and our turret core carries no `stunBaton` tag.
+- `perkIntelMaster5` and `_droneStunDamage` are CVars on the **buffed** entity, i.e. on the
+  zombie. A zombie has neither.
+
+So in our context `buffShocked` is a flat −5/s with no foreign influence at all — and it brings
+what a hand-written buff would have to reproduce: a **90 % slow decaying to 5 %** over the buff's
+duration (vanilla `buffs.xml` from 6763, gated `$shockDurationMax GTE 4`, and `GetBuffDuration`
+fills that CVar from the buff's own `duration value="4"`), the `p_electric_shock` particle on
+Spine1, and `electric_fence_impact`.
+
+It also brings a **self-limiter** worth more than the effect itself: when the shock ends, vanilla
+adds `buffShockImmune` — 5 s, `BuffResistance base_set 2`, and `HasImmunity` clamps that to 0..1
+and rolls against it, so it is total immunity. `ItemActionAttack.Hit` passes `_netSync = true`
+(IL_0e4c), which is what makes `AddBuff`'s immunity check apply at all (IL_004C). The result is
+4 s shocked, 5 s clear, per target — a turret that cannot stunlock, without a line of our own
+tuning.
+
+`buffAgentShock` is gone. `buffHazard_Slow` went with it: `buffShocked` slows without a player
+gate, so it covers the player walking into their own beam too.
+
+The rule this leaves behind is not "always use the vanilla buff" but: **read the buff, then
+decide.** The first mistake below was borrowing one without reading it; this one was refusing one
+without reading it. Same missing step.
 
 ### ⚠ A vanilla hazard buff is not a zombie buff
 
@@ -88,10 +116,11 @@ number, it was a design built into a branch vanilla leaves nearly empty. The fla
 ~36 damage/s against blood-moon enemies with several hundred health, and the shock turret — whose
 *only* job is crowd control — never slowed a zombie at all.
 
-The fix is `buffAgentFlameBurn` plus a second `effect_group` in `buffAgentShock`, both gated
-`!EntityTagCompare tags="player"`, i.e. exactly the branch vanilla leaves open. The two vanilla
-buffs **stay on the entity class**: they handle the player case properly (screen effect, 10 HP/s,
-mobility) and the burning *visual* via `buffIsOnFire`.
+The fix for the flamethrower is `buffAgentFlameBurn`, gated `!EntityTagCompare tags="player"` —
+exactly the branch vanilla leaves open. The two vanilla buffs **stay on that entity class**: they
+handle the player case properly (screen effect, 10 HP/s, mobility) and the burning *visual* via
+`buffIsOnFire`. The shock turret took the other route and dropped both in favour of `buffShocked`
+(above).
 
 The general rule, worth applying before borrowing any vanilla buff: **read its
 `effect_group` requirements before assuming it works on your target.** A hazard, a trap and a
@@ -107,10 +136,15 @@ on `AttacksPerMinute` — which it would not need if the buff never reached non-
 
 ### Buff damage earns no XP
 
-A buff has no instigator the kill-XP path can read, which is the same problem the seeker had (see
-`MinEventActionSeekerExplode`). That is why the flame turret's burn is deliberately sized as an
-after-burner (8 HP/s for 4 s) and the bulk of its output sits in the **ray damage** from
-`ammoAgentFlameFuel`, which is attributed to the thrower correctly.
+`AddBuff` *does* record an instigator (`Hit` passes the attacker's `entityId`, IL_0e47) — the
+problem is one layer down: `MinEventActionModifyStats` with `stat="Health"` goes straight to
+`Stat.set_Value` (IL_01B4..IL_01C2). No `DamageSource`, no `DamageEntity`, so nothing the kill-XP
+path could read even in principle. Same class of problem as the seeker's detonation (see
+`MinEventActionSeekerExplode`).
+
+That is why the flame turret's burn is deliberately sized as an after-burner (8 HP/s for 4 s) and
+the bulk of every turret's output sits in **ray damage**, which is attributed to the thrower
+correctly.
 
 ## Three dead XML properties
 
@@ -373,19 +407,20 @@ is calibrated against one eyeball estimate and goes wrong again the next time TF
 prefab. The measured one is correct by construction.
 
 The one assumption left is *which* particle system is the nozzle when the effect has several
-(flame, sparks, smoke): the first with emission enabled wins. If the jet still sits wrong, the
+(flame, sparks, smoke): the first with emission enabled wins. If the jet ever sits wrong again, the
 measured number in the log (`[AgentArmoryFlame]`, "Duesenversatz im Prefab") says whether the wrong
 system won, and `AgentFlameJetAutoAlign="0"` turns the correction off for manual work.
 
-⚠ **One number in the XML is inferred, not measured: `AgentFlameJetRotation="0,-90,0"`.** The
-prefab is taken to emit along its local **+X**, because the hazard blocks place the particle at
-`ParticleOffset` and lay the damage volume out towards +X from there (`DamageOffset="1,0,0"` with
-`DamageSize="3,1,1"` on the 3 m pipe). A muzzle transform faces +Z, and `0,-90,0` maps +X onto
-+Z. The play test confirms the jet turns with the barrel and that there is exactly one of it; it
-does **not** explicitly confirm the jet points forward. If it comes out sideways, `0,90,0` is the
-counter-test; backwards means adding 180. All of the geometry sits in `entityclasses.xml`, so a
-wrong guess costs an XML edit and not a rebuild, and `[AgentArmoryFlame]` logs the values actually
-used, once per turret.
+✔ **Confirmed in play 2026-08-03, and the geometry is now settled — do not "fix" it further.**
+`AgentFlameJetRotation="0,-90,0"` was inferred (the hazard blocks lay their damage volume out
+towards +X from the particle offset, so the prefab emits along its local +X; a muzzle transform
+faces +Z) and the play test confirms it: one flame, out of the muzzle, turning with the barrel.
+
+There is a **visible gap between the nozzle and where the flame begins**, and it is deliberate:
+the mod author kept it because a real flamethrower has one. It is a residue of the auto-alignment
+anchoring on the first emitting system rather than on the exact tip, i.e. it comes out of the
+prefab, not out of `AgentFlameJetOffset`. Anyone tempted to close that gap in a later round should
+read this sentence first.
 
 ### Damage: what the flame turret is measured against
 
@@ -397,6 +432,16 @@ The flame turret is deliberately put on the same total budget by a different rou
 3 rays, 240 rounds/minute — up to 180 damage/s and **13 500** over 300 units of fuel. What it pays
 for that is range (6 m, with falloff from 5 m, against the MG's 22 m); what it gets back is that
 one jet hits several targets and leaves them burning and slowed.
+
+✔ Confirmed in play 2026-08-03: "ordentlichen Schaden", and the 6 m turned out to be a **feature**
+rather than a cost — the turret's role is a chokepoint weapon, placed in front of a doorway a horde
+is funnelled through. Worth keeping in mind before anyone extends its range to make it more
+"competitive": the short reach is what gives it a role the MG turret does not have.
+
+The shock turret sits at roughly half that budget on purpose: 40 per hit, 120 rounds/minute, 150
+cells — 80 damage/s and **6 000**. It buys the difference back in control (see `buffShocked`
+above), and its 150 cells at 2 rounds/s come to exactly the 75 s lifetime, so tank and clock run
+out together instead of the turret vanishing with half a magazine.
 
 `MaxDistance` is the number that governs engagement, and it governs both halves of it: `Init`
 reads the entity-class property into the `maxDistance` field (IL_013A..IL_0163), and `findTarget`
