@@ -98,6 +98,49 @@ The rule this leaves behind is not "always use the vanilla buff" but: **read the
 decide.** The first mistake below was borrowing one without reading it; this one was refusing one
 without reading it. Same missing step.
 
+### Round-robin targeting comes free from one boolean
+
+Play test 2026-08-03 asked for the shock turret to hold a *crowd* in control rather than pour fire
+into one zombie. The whole implementation is a Postfix on `shouldIgnoreTarget` that reports an
+already-shocked or shock-immune target as ignorable. Vanilla does everything else:
+
+```
+Update, IL_00D9..IL_0110 (server branch), every frame:
+    if (!hasTarget)                                    findTarget();
+    else if (shouldIgnoreTarget(currentEntityTarget)) { currentEntityTarget = null;
+                                                       TargetEntityId = -1; }
+```
+
+and `findTarget` calls `shouldIgnoreTarget` as the **only** per-candidate filter over its
+distance-sorted list (IL_00C7), before its own LOS ray and its own yaw/pitch handling. So marking a
+tagged zombie as done gets both halves for free: the current target is dropped the frame the shock
+lands, and the next pick is the nearest zombie that is *not* yet shocked.
+
+Writing a custom target selector would have produced the same order while having to re-implement
+candidate gathering, distance sorting, the LOS raycast and the turn controllers — four things
+vanilla already gets right. Hunting for the existing decision point beat replacing it.
+
+`buffShockImmune` counts as "done" alongside `buffShocked` for a concrete reason: during that 5 s
+window `AddBuff` rejects the buff outright, so a shot at such a target cannot land a shock and is
+pure waste.
+
+Two consequences worth stating because they look like defects:
+
+- **With every zombie in range shocked, the turret stops firing.** `Update` gates the entire fire
+  block on `hasTarget` (IL_0233), so no target means no shots and no ammunition spent. The turret
+  self-throttles to the rate at which there is something new to tag.
+- **A given zombie runs free for 5 s between shocks.** That is `buffShockImmune`, i.e. vanilla's own
+  anti-stunlock, not a missed shot.
+
+⚠ **Lowering the fire rate would make this worse, not better** — the opposite of the intuition.
+`fireRateTimer` keeps accumulating while there is no target and is only reset by a shot (IL_0221
+against IL_0376), so the first shot after every switch falls on the acquisition frame, mid-turn,
+where vanilla does not wait for the barrel to line up (IL_0283 sets yaw/pitch and proceeds to fire;
+`IsTurning` only drives the sound). A high cadence supplies the second and third attempt quickly
+until one lands; a low one shrugs off the miss and waits. The waste never came from the cadence, it
+came from never switching. `TurnSpeed` is the knob that actually reduces it, which is why the shock
+turret turns at 100 against everything else's 32.
+
 ### ⚠ A vanilla hazard buff is not a zombie buff
 
 Both turrets originally borrowed the pipe-hazard pair `buffBurningHazardPlayer` +
@@ -438,10 +481,12 @@ rather than a cost — the turret's role is a chokepoint weapon, placed in front
 is funnelled through. Worth keeping in mind before anyone extends its range to make it more
 "competitive": the short reach is what gives it a role the MG turret does not have.
 
-The shock turret sits at roughly half that budget on purpose: 40 per hit, 120 rounds/minute, 150
-cells — 80 damage/s and **6 000**. It buys the difference back in control (see `buffShocked`
-above), and its 150 cells at 2 rounds/s come to exactly the 75 s lifetime, so tank and clock run
-out together instead of the turret vanishing with half a magazine.
+The shock turret is **deliberately outside this comparison.** Since it round-robins (above) it hits
+each zombie once per shock cycle rather than holding one under fire, so a damage-per-second figure
+describes nothing about it. Its output is control; the 40 per hit is a side effect that adds up to a
+few hundred over a zombie's time in range. 240 cells at 120 rounds/minute exist to cover the
+switching cost — one to three cells per target, because shots fired mid-turn miss — so that the
+75 s lifetime is the limit rather than the tank.
 
 `MaxDistance` is the number that governs engagement, and it governs both halves of it: `Init`
 reads the entity-class property into the `maxDistance` field (IL_013A..IL_0163), and `findTarget`

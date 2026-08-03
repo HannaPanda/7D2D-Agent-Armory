@@ -17,9 +17,9 @@ Modules:
   variants (gun, machine gun, shotgun, sniper, flamethrower, shock), eight craftable boxes.
   Single use: fixed ammunition, a lifetime, no picking it back up. *The gun and flamethrower
   variants are play-tested end to end; the flamethrower took three rounds to get there. The shock
-  turret has been thrown once and was broken in three ways — voice-over as its fire sound, a shock
-  buff that did not shock, and damage set too low — all fixed but unseen. MG, shotgun and sniper
-  have never been thrown. See `docs/architecture/turret.md`.*
+  turret was rebuilt twice and is now a crowd-control turret that round-robins through the nearest
+  un-shocked zombies — none of that rebuild has been seen in play. MG, shotgun and sniper have never
+  been thrown. See `docs/architecture/turret.md`.*
 
 Planned: chem launcher, disposable gun drone, hive. The chem launcher and the hive are meant to
 cover healing, which is why there is deliberately **no support turret**.
@@ -76,6 +76,11 @@ cover healing, which is why there is deliberately **no support turret**.
   thrown turret never meets, so avoiding it cost the shock turret the actual shock. A hazard, a
   trap and a weapon are three different audiences — check which one you are. Reasoning in
   `docs/architecture/turret.md`.
+- **Look for the existing decision point before replacing the flow.** Round-robin targeting for the
+  shock turret looked like it needed a custom `findTarget`. It needed a Postfix on
+  `shouldIgnoreTarget` — the one per-candidate filter vanilla already consults, both in `findTarget`
+  and every frame for the current target. Four lines instead of re-implementing candidate gathering,
+  sorting, line-of-sight and the turn controllers.
 - **A vanilla sound name can lie about what it is.** `drone_attack_stun` reads as electrical and is
   voice-over: `AudioSource_VO_Drone.prefab`, clips from `Sounds/VO/Drone/`. Check the
   `SoundDataNode`'s `AudioSource` and clip paths, not the name.

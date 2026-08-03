@@ -451,8 +451,9 @@
 			<property name="TurretEntity" value="agentTurretShock"/>
 			<property name="TurretCoreItem" value="agentTurretCoreShock"/>
 			<property name="TurretAmmoIndex" value="0"/>
-			<!-- 150 Zellen bei 2 Schuss/s = 75 s, also genau die Lebenszeit. -->
-			<property name="TurretAmmoCount" value="150"/>
+			<!-- Reserve fuer das Durchschalten, Begruendung am Kern-Item. Die Lebenszeit soll
+			     die Grenze sein, nicht der Tank. -->
+			<property name="TurretAmmoCount" value="240"/>
 			<property name="TurretLifetime" value="75"/>
 			<property name="EconomicValue" value="950"/>
 		</item>
@@ -509,16 +510,15 @@
 			<property name="EconomicValue" value="1"/>
 
 			<effect_group name="ammoAgentShockCell" tiered="false">
-				<!-- 40 je Schuss bei 120 Schuss/Minute sind 80 Schaden/s und ueber 150 Zellen
-				     ein Gesamtbudget von 6000 - knapp die Haelfte des MG- und des
-				     Flammenturrets. Das ist der Preis fuer die beste Kontrolle der Reihe:
-				     14 m Reichweite, Rundumsicht und ein Ziel, das 4 s lang auf ein Zehntel
-				     seines Tempos faellt.
-				     ⚠ DER WERT STAND BIS ZUM 2026-08-03 AUF 6, also 9 Schaden/s. Zusammen mit
-				     einem Schockbuff, der an Zombies nichts tat, ergab das ein Turret, das
-				     seine 75 s abstand, ohne etwas zu bewirken.
-				     150 Zellen bei 2 Schuss/s sind genau die 75 s Lebenszeit: Tank und Uhr
-				     laufen zusammen ab, das Turret verschwindet nicht mit halbem Magazin. -->
+				<!-- 40 je Treffer, und das ist hier ausdruecklich NEBENSACHE. Seit dem Umbau auf
+				     Round Robin (Patch_TurretShockRotation) trifft das Turret jeden Zombie nur
+				     noch einmal je Schockzyklus, statt einen einzelnen unter Dauerfeuer zu
+				     nehmen: der Sinn ist die Kontrolle, nicht die Leiche. Ein Zombie, der die
+				     ganze Lebenszeit in Reichweite bleibt, sammelt ueber die etwa acht Zyklen
+				     trotzdem einige hundert Schaden ein - als Zugabe, nicht als Aufgabe.
+				     ⚠ DER WERT STAND BIS ZUM 2026-08-03 AUF 6, also 9 Schaden/s, und der
+				     Schockbuff tat an Zombies gar nichts. Das Turret stand seine 75 s ab, ohne
+				     etwas zu bewirken. -->
 				<passive_effect name="EntityDamage" operation="base_set" value="40" tags="perkElectrocutioner"/>
 				<passive_effect name="BlockDamage" operation="base_set" value="0" tags="perkElectrocutioner"/>
 				<passive_effect name="BlockDamage" operation="base_add" value="100" tags="barrelExplosive"/>
@@ -643,8 +643,18 @@
 				<property name="Magazine_items" value="ammoAgentShockCell"/>
 			</property>
 			<effect_group name="agentTurretCoreShock" tiered="false">
+				<!-- ⚠ Die Kadenz bleibt hoch, obwohl das Turret jetzt Ziele durchschaltet - der
+				     naheliegende Schluss "seltener schiessen" waere falsch. Nach jedem
+				     Zielwechsel ist `fireRateTimer` schon voll (er laeuft weiter, solange es kein
+				     Ziel gibt) und der erste Schuss faellt mitten in der Drehung, wo er meist
+				     vorbeigeht. Eine hohe Kadenz liefert danach schnell den zweiten Versuch, eine
+				     niedrige laesst es beim Fehlschuss. Ausfuehrlich im Kopf von
+				     Patch_TurretShockRotation. -->
 				<passive_effect name="RoundsPerMinute" operation="base_set" value="120" tags="perkElectrocutioner"/>
-				<passive_effect name="MagazineSize" operation="base_set" value="150" tags="perkElectrocutioner"/>
+				<!-- Aufgestockt von 150: das Durchschalten kostet je Ziel ein bis drei Zellen,
+				     weil waehrend der Drehung Schuesse ins Leere gehen. 240 reichen fuer die
+				     volle Lebenszeit, ohne dass das Turret mit halber Uhr trocken laeuft. -->
+				<passive_effect name="MagazineSize" operation="base_set" value="240" tags="perkElectrocutioner"/>
 				<passive_effect name="JunkTurretActiveRange" operation="base_set" value="35"/>
 			</effect_group>
 		</item>

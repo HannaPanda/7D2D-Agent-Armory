@@ -16,6 +16,7 @@ public static class TurretRetire
         // Das Partikelexemplar stirbt mit dem Modell des Turrets, der Schleifenton nicht -
         // der haengt an der Entity-Id im Audio-Manager und braucht ein ausdrueckliches Stop.
         TurretFlameJet.Forget(turret);
+        Patch_TurretShockRotation.Forget(turret.entityId);
 
         // Aus der Besitzerliste nehmen. Nicht toedlich, wenn es unterbleibt - die Zaehlschleife
         // in `EntityTurret.OnUpdateEntity` holt jede Id ueber `world.GetEntity` und ueberspringt

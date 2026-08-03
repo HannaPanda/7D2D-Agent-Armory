@@ -463,9 +463,22 @@
 			<property name="MaxDistance" value="14"/>
 			<!-- Rundumsicht, Begruendung beim Gun Turret oben. -->
 			<property name="YawRange" value="360"/>
-			<property name="TurnSpeed" value="32"/>
+			<!-- Deutlich schneller als die anderen (32), weil dieses Turret als einziges
+			     STAENDIG das Ziel wechselt: sobald ein Schock sitzt, gilt der Zombie als
+			     erledigt und der naechste ist dran. Die Drehzeit ist damit der eigentliche
+			     Taktgeber, nicht die Feuerrate - und vanilla wartet das Einschwenken nicht ab,
+			     schiesst also waehrend der Drehung daneben. Je schneller der Kopf herumkommt,
+			     desto weniger Zellen gehen ins Leere. Begruendung im Kopf von
+			     Patch_TurretShockRotation. -->
+			<property name="TurnSpeed" value="100"/>
 			<property name="RaySpread" value="2"/>
 			<property name="WakeUpTime" value="0.2"/>
+			<!-- Schaltet Patch_TurretShockRotation ein: ein bereits geschockter oder gerade
+			     schockimmuner Zombie gilt als erledigt, damit vanillas eigene Zielsuche auf den
+			     naechstgelegenen ungeschockten weitergeht. Aus diesem einen Schalter entsteht
+			     das Round Robin - das Turret haelt eine MENGE in Kontrolle statt einen
+			     Einzelnen unter Dauerfeuer. -->
+			<property name="AgentShockRotateTargets" value="1"/>
 			<!-- Vanillas `buffShocked`, und zwar nach zwei Fehlversuchen mit eigenen Buffs.
 			     Er ist der SCHOCK, nicht eine Annaeherung daran: 90 Prozent Verlangsamung mit
 			     Abklingen auf 5 ueber die Buffdauer (vanilla buffs.xml ab 6763, die Gruppe

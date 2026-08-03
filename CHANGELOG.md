@@ -2,6 +2,36 @@
 
 ## Unreleased
 
+**The shock turret is now a crowd-control turret: it round-robins through the nearest un-shocked
+zombies.** Requested after the play test — "das könnte mehr ein Crowd Control Turret werden, wo der
+Schaden irrelevant ist". The implementation is one Postfix on `shouldIgnoreTarget` that reports an
+already-shocked or shock-immune target as ignorable, and vanilla supplies the rest:
+`Update` drops the current target the frame it becomes ignorable and `findTarget` calls
+`shouldIgnoreTarget` as its only per-candidate filter over a distance-sorted list — so the next pick
+is automatically the nearest zombie that is not yet shocked, with vanilla's own line-of-sight check
+and turn handling. A custom target selector would have produced the same order while
+re-implementing four things that already work.
+
+- `buffShockImmune` counts as "done" alongside `buffShocked`: during that window `AddBuff` rejects
+  the buff, so shooting such a target cannot land a shock and is pure waste.
+- **With every zombie in range shocked, the turret stops firing** — the whole fire block hangs on
+  `hasTarget`, so it self-throttles to the rate at which there is something new to tag. Fewer shots
+  fall out of the targeting, which is what "seltener schießen" actually needed.
+- ⚠ **The fire rate stays at 120, because lowering it would make this worse.** `fireRateTimer` keeps
+  running while there is no target and is only reset by a shot, so the first shot after each switch
+  falls mid-turn, where vanilla does not wait for the barrel to line up. A high cadence supplies the
+  next attempt quickly; a low one shrugs off the miss and waits. `TurnSpeed` is the knob that
+  reduces the waste, and it goes 32 → **100**. Cells 150 → **240** to cover the switching cost.
+- Damage stays at 40 and is now explicitly a side effect, not a design goal.
+
+On the observation that the 40 only seemed to tick on the first hit: **no mechanism for that is
+provable in the code.** `Fire` recomputes `GetDamageEntity` and calls `Hit` per ray per shot,
+independent of any buff, and the only per-target skip in it is *within a single shot* — a
+penetrating round will not hit the same entity twice in one chain (IL_039F..IL_03D9). Rather than
+invent a cause, `[AgentArmoryShock]` now logs each target hand-off, which will show the real pattern
+next session. The round-robin makes the question mostly moot anyway: one hit per target per cycle is
+now the intended behaviour.
+
 **The shock turret shocks now — and it was talking at you.** Play test 2026-08-03: "das macht ja
 gar nix. Das redet die ganze Zeit, trifft mit blauem Schaden, aber nur super wenig und schockt
 nicht." Three separate defects, all confirmed by reading rather than guessing.
@@ -217,9 +247,10 @@ retired cleanly (seven on an empty magazine, three on lifetime), full-circle tra
 fire sound audible. ⚠ *Why* it was silent before was never isolated: it had inherited a valid
 `junkturret_fire` all along, and the explicit per-type sound that fixed it was going in
 regardless. The **flamethrower is confirmed working end to end** after three rounds of fixes —
-damage, flame position, one flame, rotation, sound. The **shock turret has been thrown once** and
-was broken in three ways (see above); the fixes have **not** been seen. MG, shotgun and sniper have
-never been thrown at all. Details in `docs/architecture/turret.md`.
+damage, flame position, one flame, rotation, sound. The **shock turret has been thrown twice** and
+was rebuilt twice; it is now a different weapon (crowd control by round-robin) and **nothing of that
+rebuild has been seen**. MG, shotgun and sniper have never been thrown at all. Details in
+`docs/architecture/turret.md`.
 
 ## 0.9.0 - 2026-08-01 (Beta)
 
