@@ -47,6 +47,7 @@ public static class TurretFlameJet
     private const string PropOffset     = "AgentFlameJetOffset";
     private const string PropRotation   = "AgentFlameJetRotation";
     private const string PropScale      = "AgentFlameJetScale";
+    private const string PropAutoAlign  = "AgentFlameJetAutoAlign";
     private const string PropLoopSound  = "AgentFlameJetSound";
     private const string PropStartSound = "AgentFlameJetStartSound";
     private const string PropStopSound  = "AgentFlameJetStopSound";
@@ -201,10 +202,14 @@ public static class TurretFlameJet
         // dann anhaengen. Ein Partikel auf der falschen Layer wird weggeblendet.
         Utils.SetLayerRecursively(t.gameObject, muzzle.gameObject.layer);
         t.SetParent(muzzle, false);
-        t.localPosition = ReadVector(values, PropOffset, Vector3.zero);
         t.localRotation = Quaternion.Euler(ReadVector(values, PropRotation, Vector3.zero));
         float scale = ReadFloat(values, PropScale, 1f);
         if (scale > 0f && !Mathf.Approximately(scale, 1f)) t.localScale = Vector3.one * scale;
+
+        var systems = t.GetComponentsInChildren<ParticleSystem>();
+        Vector3 offset = ReadVector(values, PropOffset, Vector3.zero);
+        Vector3 emitterLocal = AlignEmitter(values, t, muzzle, systems);
+        t.localPosition = offset - emitterLocal;
 
         // Damit `RemoveParticle` es findet und vanilla von ihm weiss.
         turret.AddParticle(ChildName, t);
@@ -212,7 +217,7 @@ public static class TurretFlameJet
         var jet = new Jet
         {
             T          = t,
-            Systems    = t.GetComponentsInChildren<ParticleSystem>(),
+            Systems    = systems,
             LastFire   = Time.time,
             Burning    = false,
             LoopSound  = ReadString(values, PropLoopSound,  null),
@@ -226,11 +231,66 @@ public static class TurretFlameJet
 
         if (DBG)
             Debug.Log(string.Format(
-                "[AgentArmoryFlame] turret {0} Flamme '{1}' an {2}: {3} Systeme, lokal pos={4} rot={5} scale={6}",
-                turret.entityId, particle, muzzle.name, jet.Systems == null ? 0 : jet.Systems.Length,
-                t.localPosition.ToString("F2"), t.localEulerAngles.ToString("F0"), scale));
+                "[AgentArmoryFlame] turret {0} Flamme '{1}' an {2}: {3} Systeme, Duesenversatz im Prefab={4}, "
+                + "lokal pos={5} rot={6} scale={7}",
+                turret.entityId, particle, muzzle.name, systems == null ? 0 : systems.Length,
+                emitterLocal.ToString("F2"), t.localPosition.ToString("F2"),
+                t.localEulerAngles.ToString("F0"), scale));
 
         return jet;
+    }
+
+    // ------------------------------------------------------------------------------------
+    // Wo im Prefab sitzt die Duese?
+    // ------------------------------------------------------------------------------------
+    // `flame_hazard` ist fuer einen BLOCK gebaut, nicht fuer ein Rohr: die Wurzel des Prefabs
+    // sitzt am Blockursprung, der Brenner selbst weiter oben, dort wo beim Rohr-Hazard die
+    // Oeffnung liegt. Haengt man die Wurzel ans Muzzle, landet die sichtbare Flamme also um
+    // genau diesen prefab-internen Versatz daneben - im Test etwa anderthalb Meter zu hoch.
+    //
+    // Der Versatz wird hier GEMESSEN und nicht geschaetzt. Das ist der Unterschied, der zaehlt:
+    // ein von Hand eingetragenes `0,-1.5,0` waere auf ein Augenmass geeicht und wuerde beim
+    // naechsten Mal, wenn TFP das Prefab anfasst, wieder daneben liegen. Der gemessene Wert
+    // stimmt in jedem Fall, weil er aus dem Prefab selbst kommt.
+    //
+    // Rechnung: nach `SetParent` steht die Wurzel auf `localPosition = 0`, die Duese also auf
+    // `d = InverseTransformPoint(Duese)` im lokalen System des Muzzle - der prefab-interne
+    // Versatz, schon durch die eingestellte Drehung und Skalierung gedreht. Setzt man die
+    // Wurzel danach auf `gewuenschterOffset - d`, liegt die DUESE auf `gewuenschterOffset`.
+    // Damit bedeutet `AgentFlameJetOffset` das, was der Name verspricht: wo die Flamme
+    // ANFAENGT, gemessen vom Muendungspunkt, und nicht wo eine unsichtbare Prefab-Wurzel liegt.
+    //
+    // `AgentFlameJetAutoAlign="0"` schaltet das ab. Der Notausgang existiert, weil die Wahl der
+    // Duese unter mehreren Partikelsystemen eine Annahme bleibt (siehe unten); trifft sie das
+    // falsche, ist Handarbeit besser als eine Korrektur in die falsche Richtung.
+    private static Vector3 AlignEmitter(Dictionary<string, string> values, Transform t,
+                                        Transform muzzle, ParticleSystem[] systems)
+    {
+        if (ReadFloat(values, PropAutoAlign, 1f) <= 0f) return Vector3.zero;
+
+        var anchor = FindEmitter(systems);
+        if (anchor == null) return Vector3.zero;
+
+        t.localPosition = Vector3.zero;
+        return muzzle.InverseTransformPoint(anchor.position);
+    }
+
+    // Welches Partikelsystem ist DIE Duese? Bei einem Effekt aus mehreren Systemen (Flamme,
+    // Funken, Rauch, Licht) ist das eine Annahme, keine Ableitung. Genommen wird das erste mit
+    // eingeschalteter Emission - bei `flame_hazard` erwartungsgemaess der Brenner, weil Rauch und
+    // Funken in solchen Effekten ueber Sub-Emitter oder spaeter startende Systeme kommen.
+    // Steht die Flamme trotz Auto-Ausrichtung daneben, sagt die gemessene Zahl im Log
+    // ([AgentArmoryFlame], "Duesenversatz im Prefab"), ob hier das falsche System gewonnen hat.
+    private static Transform FindEmitter(ParticleSystem[] systems)
+    {
+        if (systems == null) return null;
+        for (int i = 0; i < systems.Length; i++)
+            if (systems[i] != null && systems[i].emission.enabled)
+                return systems[i].transform;
+        for (int i = 0; i < systems.Length; i++)
+            if (systems[i] != null)
+                return systems[i].transform;
+        return null;
     }
 
     private static void SetBurning(EntityTurret turret, Jet jet, bool on)

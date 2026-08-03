@@ -62,14 +62,55 @@ The `Buff` property on the entity class is a comma list (spaces are stripped) th
 `buffActions` in `ItemActionAttack.Hit`, applied to whatever was hit (IL_0dd6..IL_0e45) with a
 proc chance from PassiveEffect 195, base 1.0 — so always.
 
-That is the whole implementation of the flamethrower (`buffBurningHazardPlayer` +
-`buffHazard_Slow`, the same pair the vanilla `flamethrowerTrap` uses) and the shock turret
-(`buffAgentShock` + `buffHazard_Slow`). Neither needed a line of C#.
+This is how the flamethrower and the shock turret get their exotic effects, and neither needed a
+line of C#.
 
 The shock turret uses **our own** buff rather than vanilla `buffShocked`, because the latter
 decides its damage from `ItemHasTags tags="stunBaton"`, `perkIntellectMastery` and the CVar
 `_droneStunDamage` — i.e. the player's stun-baton build would determine how hard a thrown
 turret hits.
+
+### ⚠ A vanilla hazard buff is not a zombie buff
+
+Both turrets originally borrowed the pipe-hazard pair `buffBurningHazardPlayer` +
+`buffHazard_Slow`, on the reasoning that the vanilla fire traps use them and they therefore
+needed no balancing of our own. **"Player" in that name is literal, and the reasoning was
+wrong.**
+
+- `buffHazard_Slow` has exactly one `effect_group`, and all of it sits behind
+  `<requirement name="EntityTagCompare" tags="player"/>` (vanilla `buffs.xml` from 10515). On a
+  zombie the buff does **nothing** — not a little, nothing.
+- `buffBurningHazardPlayer` starts `buffHazardBurningElement`, whose non-player branch is a
+  single `HealthChangeOT base_subtract 2` (vanilla 7130..7136).
+
+So "the damage per hit is small because the effect is in the buff" was not a tight balance
+number, it was a design built into a branch vanilla leaves nearly empty. The flame turret ran at
+~36 damage/s against blood-moon enemies with several hundred health, and the shock turret — whose
+*only* job is crowd control — never slowed a zombie at all.
+
+The fix is `buffAgentFlameBurn` plus a second `effect_group` in `buffAgentShock`, both gated
+`!EntityTagCompare tags="player"`, i.e. exactly the branch vanilla leaves open. The two vanilla
+buffs **stay on the entity class**: they handle the player case properly (screen effect, 10 HP/s,
+mobility) and the burning *visual* via `buffIsOnFire`.
+
+The general rule, worth applying before borrowing any vanilla buff: **read its
+`effect_group` requirements before assuming it works on your target.** A hazard, a trap and a
+weapon are three different audiences.
+
+### Slowing a non-player is possible, and this is the proof
+
+`perc_subtract` on `WalkSpeed`/`RunSpeed` is the mechanism that provably reaches a zombie.
+`EntityAlive.MoveEntityHeaded` is the **only** caller of `GetPassiveEffectSpeedModifier`, and that
+reads PassiveEffects 133/134/135 (WalkSpeed/RunSpeed/CrouchSpeed) on every `EntityAlive`, not just
+on players. Vanilla does the same in `buffInjuryStunned00` and puts its `!player` reservation only
+on `AttacksPerMinute` — which it would not need if the buff never reached non-players.
+
+### Buff damage earns no XP
+
+A buff has no instigator the kill-XP path can read, which is the same problem the seeker had (see
+`MinEventActionSeekerExplode`). That is why the flame turret's burn is deliberately sized as an
+after-burner (8 HP/s for 4 s) and the bulk of its output sits in the **ray damage** from
+`ammoAgentFlameFuel`, which is attributed to the thrower correctly.
 
 ## Three dead XML properties
 
@@ -312,13 +353,56 @@ The looping sound is the one part that does **not** die with the model — it ha
 in the audio manager. `TurretRetire` stops it explicitly, and the tick stops it as well when it
 finds the particle transform gone, which covers teardown paths we never see (chunk unload).
 
+### The offset counts from the nozzle, because the prefab's root is not its nozzle
+
+Play test 2026-08-03, second round: one flame, turning with the barrel — and floating roughly a
+metre and a half **above** the muzzle.
+
+`flame_hazard` is authored for a *block*. Its root sits at the block origin and the burner sits
+higher up, where the pipe's opening is. Parent the root to `Muzzle` and the visible flame lands
+off by exactly that internal offset.
+
+`AlignEmitter` **measures** it instead of guessing: after `SetParent` the root is at
+`localPosition = 0`, so `muzzle.InverseTransformPoint(nozzle.position)` is the prefab-internal
+offset already turned by the configured rotation and scale. Setting the root to
+`wantedOffset - thatVector` puts the **nozzle** on `wantedOffset`. `AgentFlameJetOffset` therefore
+means what its name says — where the flame starts, measured from the muzzle.
+
+Measuring rather than hand-entering `0,-1.5,0` matters for a specific reason: a hand-entered value
+is calibrated against one eyeball estimate and goes wrong again the next time TFP touches the
+prefab. The measured one is correct by construction.
+
+The one assumption left is *which* particle system is the nozzle when the effect has several
+(flame, sparks, smoke): the first with emission enabled wins. If the jet still sits wrong, the
+measured number in the log (`[AgentArmoryFlame]`, "Duesenversatz im Prefab") says whether the wrong
+system won, and `AgentFlameJetAutoAlign="0"` turns the correction off for manual work.
+
 ⚠ **One number in the XML is inferred, not measured: `AgentFlameJetRotation="0,-90,0"`.** The
 prefab is taken to emit along its local **+X**, because the hazard blocks place the particle at
 `ParticleOffset` and lay the damage volume out towards +X from there (`DamageOffset="1,0,0"` with
 `DamageSize="3,1,1"` on the 3 m pipe). A muzzle transform faces +Z, and `0,-90,0` maps +X onto
-+Z. If the jet comes out sideways, `0,90,0` is the counter-test; backwards means adding 180. All
-of the geometry sits in `entityclasses.xml`, so a wrong guess costs an XML edit and not a
-rebuild, and `[AgentArmoryFlame]` logs the values actually used, once per turret.
++Z. The play test confirms the jet turns with the barrel and that there is exactly one of it; it
+does **not** explicitly confirm the jet points forward. If it comes out sideways, `0,90,0` is the
+counter-test; backwards means adding 180. All of the geometry sits in `entityclasses.xml`, so a
+wrong guess costs an XML edit and not a rebuild, and `[AgentArmoryFlame]` logs the values actually
+used, once per turret.
+
+### Damage: what the flame turret is measured against
+
+The reference point is the MG turret, because that is the one that visibly works: 250 rounds of
+7.62 HP at 50.5 each is a **12 625** budget over the box's life, ~420 damage/s single target at up
+to 22 m.
+
+The flame turret is deliberately put on the same total budget by a different route: 15 per ray hit,
+3 rays, 240 rounds/minute — up to 180 damage/s and **13 500** over 300 units of fuel. What it pays
+for that is range (6 m, with falloff from 5 m, against the MG's 22 m); what it gets back is that
+one jet hits several targets and leaves them burning and slowed.
+
+`MaxDistance` is the number that governs engagement, and it governs both halves of it: `Init`
+reads the entity-class property into the `maxDistance` field (IL_013A..IL_0163), and `findTarget`
+uses that same field for the acquisition bounds *and* for the line-of-sight ray (IL_0077,
+IL_013F). So a short-range turret does not waste ammunition firing at targets it cannot reach —
+worth knowing, because it rules out the other obvious explanation for "it kills nothing".
 
 ⚠ **Multiplayer: the jet is host-only.** `Fire` returns early on a client (IL_0000), so the
 trigger never arrives there, and an `Object.Instantiate` is not replicated the way

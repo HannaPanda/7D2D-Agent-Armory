@@ -71,6 +71,64 @@
 
 
 		<!-- ============================================================
+		     BRAND-EFFEKT des Flammenturrets.
+		     ============================================================
+		     ⚠ WARUM DIESER BUFF EXISTIEREN MUSS. Das Flammenturret hing seinen ganzen
+		     Nutzen an die beiden vanilla-Hazardbuffs `buffBurningHazardPlayer` und
+		     `buffHazard_Slow` - und "Player" im Namen ist woertlich gemeint. Beide sind fuer
+		     den SPIELER gebaut, der in ein Rohr-Hazard laeuft, nicht fuer einen Zombie:
+
+		       `buffHazard_Slow` hat genau EINE effect_group, und die haengt komplett hinter
+		       `<requirement name="EntityTagCompare" tags="player"/>` (vanilla buffs.xml
+		       ab 10515). An einem Zombie tut der Buff also NICHTS. Nicht wenig - nichts.
+
+		       `buffBurningHazardPlayer` startet `buffHazardBurningElement`, und dessen
+		       Nicht-Spieler-Zweig gibt `HealthChangeOT base_subtract 2` (vanilla 7130..7136).
+		       Zwei Trefferpunkte je Takt gegen einen Blutmond-Zombie mit mehreren hundert.
+
+		     Damit war die Entwurfsidee "der Schaden ist klein, die Wirkung steckt im Buff"
+		     nicht etwa knapp bemessen, sondern ins Leere gebaut. Dieser Buff ist der
+		     Nicht-Spieler-Zweig, den vanilla offen laesst. Die beiden vanilla-Buffs bleiben
+		     zusaetzlich haengen: sie erledigen den Spielerfall (Bildschirmeffekt, 10 HP/s,
+		     Mobilitaet) und die Brand-OPTIK ueber `buffIsOnFire` weiterhin richtig.
+
+		     `perc_subtract` auf `WalkSpeed`/`RunSpeed` ist der Verlangsamer, der an einem
+		     Zombie NACHWEISLICH wirkt: `EntityAlive.MoveEntityHeaded` ist der einzige
+		     Aufrufer von `GetPassiveEffectSpeedModifier`, und das liest die PassiveEffects
+		     133/134/135 (WalkSpeed/RunSpeed/CrouchSpeed) an jeder EntityAlive, nicht nur am
+		     Spieler. Vanilla macht es in `buffInjuryStunned00` genauso und setzt dort seinen
+		     `!player`-Vorbehalt nur auf `AttacksPerMinute` - was es nicht taete, wenn der
+		     Buff Zombies gar nicht erreichte.
+
+		     `stack_type replace`, nicht `stack` (= `StackEffectMultiplier + 1`, IL_0196 in
+		     `EntityBuffs.AddBuff`): das Turret trifft bis zu zwoelfmal pro Sekunde, ein
+		     stapelnder Effekt waere nach zwei Sekunden absurd. `replace` setzt nur den Timer
+		     zurueck (IL_011a), der Brand laeuft also ab dem letzten Treffer weiter.
+
+		     ⚠ Der Brandschaden wird dem WERFER NICHT als Kill zugerechnet - ein Buff hat
+		     keinen Verursacher, den die XP-Vergabe lesen koennte (dasselbe Problem wie bei
+		     der Seeker-Detonation, siehe MinEventActionSeekerExplode). Deshalb ist er
+		     bewusst als Nachbrenner bemessen und nicht als Hauptschaden: der steckt im
+		     direkten Strahlschaden aus `ammoAgentFlameFuel`, und der zaehlt korrekt. -->
+		<buff name="buffAgentFlameBurn" name_key="buffAgentFlameBurn"
+		      description_key="buffAgentFlameBurnDesc"
+		      icon="ui_game_symbol_fire" icon_color="230,120,40">
+			<damage_type value="heat"/>
+			<stack_type value="replace"/>
+			<duration value="4"/>
+			<update_rate value="1"/>
+			<effect_group>
+				<!-- Nur der Zweig, den vanilla leer laesst. Den Spieler behandeln die beiden
+				     vanilla-Hazardbuffs an der entity_class, und zwar besser als eine Kopie. -->
+				<requirement name="!EntityTagCompare" tags="player"/>
+					<triggered_effect trigger="onSelfBuffUpdate" action="ModifyStats" stat="Health"
+						operation="add" value="-8"/>
+					<passive_effect name="WalkSpeed" operation="perc_subtract" value=".4"/>
+					<passive_effect name="RunSpeed" operation="perc_subtract" value=".4"/>
+			</effect_group>
+		</buff>
+
+		<!-- ============================================================
 		     SCHOCK-EFFEKT des Schockturrets.
 		     ============================================================
 		     Eigener Buff statt des vanilla `buffShocked`. Der ist zwar genau der richtige
@@ -97,10 +155,21 @@
 			<duration value="3"/>
 			<update_rate value="1"/>
 			<effect_group>
-				<!-- Kleiner Schaden pro Sekunde. Die Wirkung des Turrets ist die
-				     Verlangsamung (buffHazard_Slow, an der entity_class), nicht das hier. -->
+				<!-- Kleiner Schaden pro Sekunde. Die Wirkung dieses Turrets ist die
+				     Verlangsamung, nicht das hier. -->
 				<triggered_effect trigger="onSelfBuffUpdate" action="ModifyStats" stat="Health"
 					operation="add" value="-2"/>
+			</effect_group>
+			<effect_group>
+				<!-- ⚠ HIER liegt der eigentliche Zweck des Schockturrets, und er lag bis zum
+				     2026-08-03 brach: die Verlangsamung stand als `buffHazard_Slow` an der
+				     entity_class, und der Buff ist komplett spielergegattert (Begruendung im
+				     Block bei `buffAgentFlameBurn` oben). Ein Turret, dessen einzige Aufgabe
+				     Crowd Control ist, hat Zombies also nie gebremst.
+				     Haerter als beim Flammenturret, weil dieses Turret nichts anderes kann. -->
+				<requirement name="!EntityTagCompare" tags="player"/>
+					<passive_effect name="WalkSpeed" operation="perc_subtract" value=".5"/>
+					<passive_effect name="RunSpeed" operation="perc_subtract" value=".5"/>
 			</effect_group>
 		</buff>
 

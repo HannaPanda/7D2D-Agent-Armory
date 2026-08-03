@@ -476,11 +476,20 @@
 			<property name="EconomicValue" value="1"/>
 
 			<effect_group name="ammoAgentFlameFuel" tiered="false">
-				<!-- Klein pro Treffer, weil die Wirkung im Brandbuff steckt: bei 3 Strahlen
-				     und 240 Schuss/Minute sind das 12 Treffer pro Sekunde auf ein Ziel im
-				     Strahl. Wer hier hochdreht, macht aus dem Kontrollwerkzeug versehentlich
-				     das staerkste Schadensturret der Reihe. -->
-				<passive_effect name="EntityDamage" operation="base_set" value="3" tags="perkTurrets"/>
+				<!-- 3 Strahlen bei 240 Schuss/Minute sind bis zu 12 Treffer pro Sekunde auf ein
+				     Ziel im Strahl, also 180 Schaden/s und ueber die 300 Einheiten Treibstoff
+				     ein Gesamtbudget von 13500. Das MG-Turret liegt mit 250 Schuss 7.62 HP
+				     (50.5 je Schuss) bei 12625 - absichtlich auf derselben Hoehe, weil das die
+				     Waffe ist, an der gemessen wird.
+				     ⚠ DIESER WERT STAND BIS ZUM 2026-08-03 AUF 3. Das war kein zu knapper
+				     Balancewert, sondern die Folge eines Denkfehlers: der Entwurf verliess sich
+				     darauf, dass die Wirkung in den Buffs steckt, und die beiden vanilla-Buffs
+				     an der entity_class wirken an einem Zombie praktisch nicht (Begruendung im
+				     Block bei `buffAgentFlameBurn` in buffs.xml). Damit blieben 36 Schaden/s
+				     gegen Blutmond-Gegner mit mehreren hundert Trefferpunkten.
+				     Der Ausgleich fuer die Hoehe ist die REICHWEITE: 6 m gegen 22 m beim MG,
+				     mit Abfall ab 5 m. Dafuer trifft ein Strahl mehrere Ziele auf einmal. -->
+				<passive_effect name="EntityDamage" operation="base_set" value="15" tags="perkTurrets"/>
 				<passive_effect name="BlockDamage" operation="base_set" value="0" tags="perkTurrets"/>
 				<!-- Gegen Fassexplosionen wie bei jeder vanilla Munition. -->
 				<passive_effect name="BlockDamage" operation="base_add" value="100" tags="barrelExplosive"/>

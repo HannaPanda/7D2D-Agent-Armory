@@ -400,30 +400,47 @@
 			<property name="RaySpread" value="9"/>
 			<property name="RayCount" value="3"/>
 			<property name="WakeUpTime" value="0.2"/>
-			<!-- ⚠ HIER LIEGT DIE EIGENTLICHE WIRKUNG. `Buff` ist eine Kommaliste (Leerzeichen
-			     werden entfernt) und geht als `buffActions` in `ItemActionAttack.Hit`, wo sie
-			     auf die getroffene Entity angewandt wird (IL_0dd6..IL_0e45). Die Trefferchance
-			     kommt aus PassiveEffect 195 mit Basis 1.0, also immer.
-			     Beide Buffs sind vanilla und werden vom `flamethrowerTrap` genauso benutzt -
-			     kein eigener Buff noetig, keine eigene Balance-Baustelle. -->
-			<property name="Buff" value="buffBurningHazardPlayer,buffHazard_Slow"/>
+			<!-- `Buff` ist eine Kommaliste (Leerzeichen werden entfernt) und geht als
+			     `buffActions` in `ItemActionAttack.Hit`, wo sie auf die getroffene Entity
+			     angewandt wird (IL_0dd6..IL_0e45). Die Trefferchance kommt aus PassiveEffect
+			     195 mit Basis 1.0, also immer.
+			     ⚠ DIE ZWEI VANILLA-BUFFS WIRKEN NUR AM SPIELER. Sie stehen hier weiterhin,
+			     weil sie den Spielerfall richtig erledigen - Bildschirmeffekt, 10 HP/s,
+			     Mobilitaet, und die Brandoptik ueber `buffIsOnFire`. Gegen Zombies tun sie
+			     fast nichts, und genau darauf hatte sich der Entwurf verlassen; den offenen
+			     Nicht-Spieler-Zweig traegt jetzt `buffAgentFlameBurn`. Die ganze Begruendung
+			     mit Zeilenangaben steht im Kommentarblock dieses Buffs in buffs.xml.
+			     Der Hauptschaden steckt NICHT hier, sondern im Strahlschaden von
+			     `ammoAgentFlameFuel`: Buffschaden hat keinen Verursacher und wuerde dem
+			     Werfer keine Erfahrungspunkte einbringen. -->
+			<property name="Buff" value="buffAgentFlameBurn,buffBurningHazardPlayer,buffHazard_Slow"/>
 
 			<!-- ==== Dauerflamme, gelesen von TurretFlameJet ==============================
 			     `flame_hazard` ist genau die lange, waagerechte Flamme der Rohr-Hazards in
 			     POIs (blocks.xml, `pipeFireHazardBlack2m` und Verwandte).
-			     ⚠ DIE DREHUNG IST DIE EINE ZAHL, DIE EIN BLICK BESTAETIGEN MUSS. Das Prefab
-			     stoesst entlang seiner LOKALEN +X-Achse aus - erschlossen, nicht gemessen: die
-			     Hazard-Bloecke setzen das Partikel an `ParticleOffset` und legen die
-			     Schadenszone von dort aus nach +X (`DamageOffset="1,0,0"` mit
-			     `DamageSize="3,1,1"` beim 3-m-Rohr). Das Muzzle-Transform zeigt wie jedes
-			     Unity-Transform nach +Z. `0,-90,0` dreht +X auf +Z, die Flamme laeuft also das
-			     Rohr entlang. Steht sie quer, ist `0,90,0` der Gegenversuch; zeigt sie nach
-			     hinten, `0,180,0` zusaetzlich. Kein Rebuild noetig, nur diese Zeile.
+			     Die Drehung war erschlossen, nicht gemessen: die Hazard-Bloecke setzen das
+			     Partikel an `ParticleOffset` und legen die Schadenszone von dort aus nach +X
+			     (`DamageOffset="1,0,0"` mit `DamageSize="3,1,1"` beim 3-m-Rohr), also stoesst
+			     das Prefab entlang seiner LOKALEN +X-Achse aus. Das Muzzle-Transform zeigt wie
+			     jedes Unity-Transform nach +Z, `0,-90,0` dreht +X darauf.
+			     Stand am 2026-08-03: im Spiel gesehen, die Flamme dreht sich mit dem Rohr, und
+			     es ist genau eine. Ob sie dabei WAAGERECHT NACH VORNE zeigt, ist damit noch
+			     nicht ausdruecklich bestaetigt - steht sie quer, ist `0,90,0` der Gegenversuch,
+			     zeigt sie nach hinten, `0,180,0` zusaetzlich. Kein Rebuild noetig, nur die Zeile.
 			     Der Offset ist die Laenge vor der Muendung, in Metern, im lokalen System des
-			     Rohrs - z bei dieser Drehung nach VORNE. -->
+			     Rohrs - z bei dieser Drehung nach VORNE.
+			     ⚠ Er zaehlt ab der DUESE, nicht ab der Prefab-Wurzel. `flame_hazard` ist fuer
+			     einen Block gebaut und hat seinen Brenner rund anderthalb Meter ueber seiner
+			     Wurzel - genau der Versatz, mit dem die Flamme am 2026-08-03 ueber der Muendung
+			     schwebte. TurretFlameJet MISST ihn beim Anlegen und rechnet ihn heraus
+			     (Begruendung in `AlignEmitter`), deshalb heisst `0,0,0.1` hier wirklich "zehn
+			     Zentimeter vor der Muendung". `AgentFlameJetAutoAlign="0"` schaltet die Messung
+			     ab, dann gilt der Offset wieder ab der Wurzel. Der gemessene Wert steht als
+			     "Duesenversatz im Prefab" im Log. -->
 			<property name="AgentFlameJet" value="flame_hazard"/>
 			<property name="AgentFlameJetRotation" value="0,-90,0"/>
 			<property name="AgentFlameJetOffset" value="0,0,0.1"/>
+			<property name="AgentFlameJetAutoAlign" value="1"/>
 			<property name="AgentFlameJetScale" value="1"/>
 			<!-- `flametrap_lp` ist in sounds.xml:12535 mit `Loop="true"` deklariert, wird also
 			     einmal gestartet und einmal gestoppt. Start- und Endton sind dieselben, die die
@@ -451,7 +468,10 @@
 			     wird ueber `ItemHasTags tags="stunBaton"` und die CVar `_droneStunDamage`
 			     entschieden (vanilla buffs.xml ab Zeile 6574). Wer ihn direkt benutzt,
 			     laesst fremden Kontext bestimmen, wie hart das eigene Turret zuschlaegt.
-			     `buffHazard_Slow` bleibt vanilla, das ist ein reiner Verlangsamer. -->
+			     ⚠ `buffHazard_Slow` verlangsamt NUR DEN SPIELER (alles hinter einem
+			     `EntityTagCompare tags="player"`). Es bleibt fuer genau diesen Fall stehen;
+			     die Verlangsamung der Zombies - der einzige Zweck dieses Turrets - steckt
+			     seit dem 2026-08-03 in `buffAgentShock` selbst. -->
 			<property name="Buff" value="buffAgentShock,buffHazard_Slow"/>
 			<property name="FireSound" value="drone_attack_stun"/>
 			<!-- Es gibt in vanilla KEIN Elektro-Muendungsfeuer: die vollstaendige Liste der in den

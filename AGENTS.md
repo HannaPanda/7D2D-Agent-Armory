@@ -16,9 +16,10 @@ Modules:
 - **Throwable turrets** — a box you throw that deploys an auto-turret where it lands. Six
   variants (gun, machine gun, shotgun, sniper, flamethrower, shock), eight craftable boxes.
   Single use: fixed ammunition, a lifetime, no picking it back up. *The gun variant is
-  play-tested end to end, sound included. The flamethrower's flame was rebuilt as a single
-  persistent jet after the per-shot version leaked flames into the world, and that rebuild has
-  not been seen yet; four types have never been thrown — see `docs/architecture/turret.md`.*
+  play-tested end to end, sound included. The flamethrower has been through two rounds of fixes —
+  one persistent jet instead of one per shot, then a measured muzzle offset and a tenfold damage
+  correction after its borrowed vanilla buffs turned out to be player-only; neither correction has
+  been seen in play. Four types have never been thrown — see `docs/architecture/turret.md`.*
 
 Planned: chem launcher, disposable gun drone, hive. The chem launcher and the hive are meant to
 cover healing, which is why there is deliberately **no support turret**.
@@ -67,6 +68,12 @@ cover healing, which is why there is deliberately **no support turret**.
   `python -c "import xml.etree.ElementTree as ET,glob;[ET.parse(f) for f in glob.glob('*.xml')]"`.
   The damage is not local — one bad file drops out of the load entirely, and every other file
   that names one of its items then fails too, pointing at something that is perfectly fine.
+- **Read a vanilla buff's `effect_group` requirements before borrowing it.** "The vanilla fire
+  traps use this pair, so it needs no balancing of ours" cost the flame turret its damage and the
+  shock turret its entire purpose: `buffHazard_Slow` is gated `EntityTagCompare tags="player"` end
+  to end and does *nothing* to a zombie, and `buffBurningHazardPlayer`'s non-player branch is 2
+  HP/s. A hazard, a trap and a weapon are three different audiences. Reasoning in
+  `docs/architecture/turret.md`.
 - **Every item needs a `Meshfile`**, even a pure data carrier that never reaches an inventory
   (`ItemClassesFromXml.parseItem` throws when `CanHold()` and the property is absent, and
   `CanHold` defaults to true). Same for `Material`.

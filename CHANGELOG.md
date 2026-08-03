@@ -2,6 +2,55 @@
 
 ## Unreleased
 
+**The flame turret does real damage now, and the shock turret finally slows anything.** Play test
+2026-08-03: the flamethrower took forever to kill anything while the MG turret with HP ammunition
+cut through blood-moon hordes. This was not a balance number set too low — it was a design built
+on a false premise. The flamethrower kept its damage per hit small on purpose, because "the effect
+is in the buffs", and the two buffs it borrowed from the vanilla pipe hazards are **for the
+player**:
+
+- `buffHazard_Slow` has exactly one `effect_group` and all of it sits behind
+  `<requirement name="EntityTagCompare" tags="player"/>` (vanilla `buffs.xml` from 10515). Against
+  a zombie it does nothing at all.
+- `buffBurningHazardPlayer` starts `buffHazardBurningElement`, whose non-player branch is a single
+  `HealthChangeOT base_subtract 2` (vanilla 7130..7136).
+
+So the flame ran at ~36 damage/s against enemies with several hundred health, and the shock
+turret — whose entire purpose is crowd control — had never slowed a zombie.
+
+- **`buffAgentFlameBurn`** fills the branch vanilla leaves open (`!EntityTagCompare tags="player"`):
+  8 HP/s for 4 s after the last hit, plus a 40 % slow. `stack_type replace`, because a turret that
+  lands up to twelve hits a second must reset a timer, never stack an effect.
+- **`buffAgentShock`** gains the same kind of group with a 50 % slow — harder, because slowing is
+  the only thing that turret does.
+- The two vanilla buffs **stay** on both entity classes: they handle the player case correctly
+  (screen effect, 10 HP/s, mobility) and the burning visual via `buffIsOnFire`.
+- **`ammoAgentFlameFuel` goes from 3 to 15 damage per ray hit**, which puts the flame turret's
+  budget over one box at 13 500 against the MG turret's 12 625 — deliberately level with the
+  weapon it is measured against. It pays for that in range: 6 m with falloff from 5 m, against the
+  MG's 22 m, in exchange for hitting several targets per jet.
+- The bulk of the output stays in **ray damage rather than the burn** on purpose: a buff has no
+  instigator the kill-XP path can read, so burn kills would earn the thrower nothing.
+
+`perc_subtract` on `WalkSpeed`/`RunSpeed` is the slow that provably reaches a zombie:
+`EntityAlive.MoveEntityHeaded` is the only caller of `GetPassiveEffectSpeedModifier`, which reads
+PassiveEffects 133/134/135 on every `EntityAlive`. Vanilla's `buffInjuryStunned00` does the same
+and reserves only `AttacksPerMinute` for non-players.
+
+**The flame now comes out of the muzzle instead of floating above it.** Same play test: one flame,
+turning correctly, but about a metre and a half too high. `flame_hazard` is authored for a block —
+root at the block origin, burner up where the pipe's opening is — so parenting the root to `Muzzle`
+put the visible flame off by that internal offset. `TurretFlameJet.AlignEmitter` now **measures**
+the offset (`muzzle.InverseTransformPoint(nozzle.position)` while the root sits at zero) and
+subtracts it, so `AgentFlameJetOffset` means where the flame starts, from the muzzle. A hand-entered
+`0,-1.5,0` would have been calibrated to one eyeball estimate and would break the next time the
+prefab changes. `AgentFlameJetAutoAlign="0"` switches the correction off; the measured value is in
+the log as "Duesenversatz im Prefab".
+
+⚠ Which particle system counts as the nozzle is still an assumption — the first with emission
+enabled — and the jet's **forward direction** is still the inferred `0,-90,0`. The play test
+confirms it turns with the barrel and that there is one of it, not that it points forward.
+
 **The flame turret now burns one flame instead of accumulating them.** Thrown into a fight it
 produced a growing pile of flames at fixed world positions that stayed there after the turret
 itself was gone. Cause, not guesswork: `MiniTurretFireController.Fire` spawns the muzzle effect
@@ -132,9 +181,12 @@ perk that matches its ammunition.
 retired cleanly (seven on an empty magazine, three on lifetime), full-circle traverse confirmed,
 fire sound audible. ⚠ *Why* it was silent before was never isolated: it had inherited a valid
 `junkturret_fire` all along, and the explicit per-type sound that fixed it was going in
-regardless. The flamethrower has been thrown once, which is what turned up the flame leak fixed
-above; the rebuilt jet has **not** been seen yet, and its rotation is a reasoned guess. The other
-four types have not been thrown at all. Details in `docs/architecture/turret.md`.
+regardless. The flamethrower has been thrown twice: the first throw turned up the flame leak, the
+second confirmed one flame that turns with the barrel and turned up both the height offset and the
+damage problem fixed above. Neither the corrected position nor the new damage has been seen yet.
+The other four types have not been thrown at all, so the shock turret's slow — which never worked
+and is now fixed — has never been observed either way. Details in
+`docs/architecture/turret.md`.
 
 ## 0.9.0 - 2026-08-01 (Beta)
 
