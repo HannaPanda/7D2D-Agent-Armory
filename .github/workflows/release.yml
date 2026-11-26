@@ -35,6 +35,8 @@ permissions:
 # neither makes it a verification of what ships here. One `tb run --stage gui` on
 # 3.0.1 is all it takes to add it.
 env:
+  # Nexus mod UID for the v3 API (not the number in the mod page URL).
+  NEXUS_MOD_UID: "4548370378268"
   TESTED_VERSIONS: "3.1.0"
 
 jobs:
@@ -230,9 +232,41 @@ jobs:
           print("__EOF__")
           PY
 
+      # The mod page's Changelogs tab gets this version's CHANGELOG.md bullets in full,
+      # one entry per line. The Nexus endpoint only appends, so re-running a tag adds the
+      # same lines a second time. No section for this version -> nothing is posted.
+      - name: Build Nexus changelog entries
+        id: clentries
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import os, re
+
+          version = os.environ["VERSION"]
+          text = open("CHANGELOG.md", encoding="utf-8").read()
+          m = re.search(r"^## " + re.escape(version) + r"\b.*?$(.*?)(?=^## |\Z)", text, re.M | re.S)
+          entries = []
+          if m:
+              # fold continuation lines into their bullet; the whitespace after the marker
+              # keeps a wrapped line that starts with **bold** from looking like a new bullet
+              raw = re.sub(r"\n(?!\s*[-*]\s)", " ", m.group(1))
+              for line in raw.splitlines():
+                  line = line.strip()
+                  if not re.match(r"[-*]\s", line):
+                      continue
+                  line = re.sub(r"^[-*]\s+", "", line)
+                  line = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", line)  # md links -> text
+                  line = re.sub(r"[`*]", "", line)  # not "_": identifiers use it
+                  entries.append(re.sub(r"\s+", " ", line).strip())
+          print("entries<<__EOF__")
+          print("\n".join(entries))
+          print("__EOF__")
+          PY
+
       - name: Upload to Nexus Mods
         if: ${{ vars.NEXUSMODS_FILE_ID != '' }}
-        uses: Nexus-Mods/upload-action@v1.0.0-beta.9
+        uses: Nexus-Mods/upload-action@v1.0.0-beta.11
         with:
           api_key: ${{ secrets.NEXUSMODS_API_KEY }}
           file_id: ${{ vars.NEXUSMODS_FILE_ID }}
@@ -244,6 +278,9 @@ jobs:
           # Flip to false to keep every version visible in the Files tab.
           archive_existing_version: true
           update_mod_version: true
+          # Appends this version's CHANGELOG.md bullets to the Changelogs tab.
+          mod_id: ${{ env.NEXUS_MOD_UID }}
+          changelog: ${{ steps.clentries.outputs.entries }}
           description: |
             BETA. Agent Armory - deployable agent gadgets. This file contains the
             Cluster Seeker: a throwable pod that lands, follows you, and bursts into
@@ -258,3 +295,28 @@ jobs:
             client - asset bundles are not sent from server to client.
 
             ${{ steps.notes.outputs.changelog }}
+
+      # The mod page description is nexus/description.bbcode, sent as is. Nexus stores it
+      # exactly as if it had been saved in the website editor (v3 editMod), so the repo
+      # file is the only place the description is edited. The endpoint is marked
+      # Experimental by Nexus and takes the mod UID, not the number in the page URL
+      # (UID = 1059 * 2^32 + mod number for 7 Days to Die).
+      - name: Update Nexus mod page description
+        if: ${{ vars.NEXUSMODS_FILE_ID != '' }}
+        env:
+          NEXUSMODS_API_KEY: ${{ secrets.NEXUSMODS_API_KEY }}
+        run: |
+          jq -Rs '{description: .}' nexus/description.bbcode > "$RUNNER_TEMP/desc.json"
+          status=$(curl -sS -o "$RUNNER_TEMP/desc.out" -w '%{http_code}' -X PATCH \
+            -H "apikey: $NEXUSMODS_API_KEY" \
+            -H "Content-Type: application/json" \
+            -H "Application-Name: ${GITHUB_REPOSITORY#*/}-release" \
+            -H "Application-Version: ${GITHUB_REF_NAME#v}" \
+            --data @"$RUNNER_TEMP/desc.json" \
+            "https://api.nexusmods.com/v3/mods/${NEXUS_MOD_UID}")
+          if [ "$status" != "204" ]; then
+            echo "::error::Nexus description update failed with HTTP $status"
+            cat "$RUNNER_TEMP/desc.out"
+            exit 1
+          fi
+          echo "Mod page description updated from nexus/description.bbcode."
