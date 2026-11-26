@@ -149,84 +149,6 @@ jobs:
         id: ver
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
-      # The Nexus *file* description is what a user reads next to the download button,
-      # so it says what the file IS, then what changed. The mini changelog is the
-      # current version's CHANGELOG.md section, flattened to at most 6 one-line
-      # bullets. No section for this version -> blurb only.
-      - name: Build mini changelog
-        id: notes
-        env:
-          VERSION: ${{ steps.ver.outputs.version }}
-        run: |
-          python3 - <<'PY' >> "$GITHUB_OUTPUT"
-          import os, re
-
-          version = os.environ["VERSION"]
-          lines = open("CHANGELOG.md", encoding="utf-8").read().splitlines()
-
-          # the "## <version> - <date>" section, up to the next "## "
-          body, inside = [], False
-          for line in lines:
-              if line.startswith("## "):
-                  if inside:
-                      break
-                  inside = line[3:].strip().startswith(version + " ")
-                  continue
-              if inside:
-                  body.append(line)
-
-          # top-level "- " bullets, continuation lines folded in
-          bullets, cur = [], None
-          for line in body:
-              if line.startswith("- "):
-                  if cur:
-                      bullets.append(cur)
-                  cur = line[2:]
-              elif cur is not None and line.startswith("  ") and line.strip():
-                  cur += " " + line.strip()
-              elif cur:
-                  bullets.append(cur)
-                  cur = None
-          if cur:
-              bullets.append(cur)
-
-          def plain(s):
-              s = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", s)  # md links -> text
-              s = s.replace("**", "").replace("`", "")
-              return re.sub(r"\s+", " ", s).strip()
-
-          def condense(text, limit=180):
-              """Whole sentences up to `limit`; word-truncate if that stays too short."""
-              if len(text) <= limit:
-                  return text
-              kept = ""
-              for sentence in re.split(r"(?<=\.)\s+", text):
-                  if kept and len(kept) + len(sentence) > limit:
-                      break
-                  kept = (kept + " " + sentence).strip()
-                  if len(kept) >= 120:
-                      break
-              if len(kept) >= 70:
-                  return kept
-              short = text[:limit].rsplit(" ", 1)[0].rstrip(" ,;-")
-              return short + "..." if len(short) < len(text) else text
-
-          out = ["- " + condense(plain(b)) for b in bullets[:6]]
-
-          changelog = ""
-          if out:
-              changelog = "What's new in %s:\n%s\n\n" % (version, "\n".join(out))
-          changelog += "Full changelog: %s/%s/releases/tag/%s" % (
-              os.environ["GITHUB_SERVER_URL"],
-              os.environ["GITHUB_REPOSITORY"],
-              os.environ["GITHUB_REF_NAME"],
-          )
-
-          print("changelog<<__EOF__")
-          print(changelog)
-          print("__EOF__")
-          PY
-
       # The mod page's Changelogs tab gets this version's CHANGELOG.md bullets in full,
       # one entry per line - up to a "### Notes from development" heading, which holds
       # the engineering history and stays on GitHub. The Nexus endpoint only appends, so
@@ -278,21 +200,12 @@ jobs:
           # Appends this version's CHANGELOG.md bullets to the Changelogs tab.
           mod_id: ${{ env.NEXUS_MOD_UID }}
           changelog: ${{ steps.clentries.outputs.entries }}
-          description: |
-            BETA. Agent Armory - deployable agent gadgets. This file contains the
-            Cluster Seeker: a throwable pod that lands, follows you, and bursts into
-            ten autonomous drones when enemies come close. They pick their own targets
-            and detonate on contact. Unlocked by the Explosives skill at level 35,
-            or earlier from the Cluster Seeker Schematic. Plus six throwable turrets
-            (gun, MG, shotgun, sniper, flame, shock), each unlocked by the weapon perk
-            that matches its ammunition or from its schematic.
-
-            Built for and played on game version ${{ env.TESTED_VERSIONS }}. No other
-            mods required. Contains a Harmony DLL, so
-            EasyAntiCheat must be off. Multiplayer: install on the server AND on every
-            client - asset bundles are not sent from server to client.
-
-            ${{ steps.notes.outputs.changelog }}
+          # Nexus rejects a file description over 255 characters (422). What changed goes
+          # to the Changelogs tab via `changelog`, so this stays a short summary.
+          description: >-
+            BETA. Cluster Seeker drone pod plus six throwable turrets. Built for V ${{ env.TESTED_VERSIONS }}.
+            EasyAntiCheat off. Multiplayer: install on server AND every client.
+            Changelog: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}
 
       # The mod page description is nexus/description.bbcode, sent as is. Nexus stores it
       # exactly as if it had been saved in the website editor (v3 editMod), so the repo
