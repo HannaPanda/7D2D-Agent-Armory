@@ -25,19 +25,15 @@ permissions:
 #
 # Re-establish this list before EVERY release:
 #   tb run    --mod agentarmory --profile matrix --json
-#   tb run    --mod agentarmory --version 3.1.0 --stage gui --visual defer --json
+#   tb run    --mod agentarmory --version 3.4.0 --stage gui --visual defer --json
 #   tb report --mod agentarmory --json
 #
 # "Played on" is a stricter claim than "loads on" and they are tracked separately.
-# 3.0.0 and 3.0.1 pass stage 1 but have no GUI run against THIS mod version, so they
-# are not in this list - the list is per mod version, not per mod. 3.0.1 was played
-# for days during development, but on a pre-0.9.0 build and inside a large modlist;
-# neither makes it a verification of what ships here. One `tb run --stage gui` on
-# 3.0.1 is all it takes to add it.
+# The mod supports the current game version only; the DLL is built against it.
 env:
   # Nexus mod UID for the v3 API (not the number in the mod page URL).
   NEXUS_MOD_UID: "4548370378268"
-  TESTED_VERSIONS: "3.1.0"
+  TESTED_VERSIONS: "3.4.0"
 
 jobs:
   package:
@@ -127,11 +123,10 @@ jobs:
           generate_release_notes: true
           body: |
             **Beta.** Deployable agent gadgets for 7 Days to Die. This release contains
-            the **Cluster Seeker**: throw it, and ten autonomous drones do the aiming.
+            the **Cluster Seeker** (throw it, and ten autonomous drones do the aiming)
+            and **six throwable turrets** that build themselves where they land.
 
-            Played and verified on **V ${{ env.TESTED_VERSIONS }}**. V 3.0.0 and V 3.0.1
-            load cleanly (mod loads, Harmony patches apply, no errors or XML problems)
-            but were not played on this build, and other 3.x builds are untested.
+            Built for and played on **V ${{ env.TESTED_VERSIONS }}**.
             No other mods needed; EasyAntiCheat must be **off** (Harmony DLL).
             **Multiplayer: install on the server and on every client** - asset bundles
             are not sent from server to client.
@@ -233,8 +228,10 @@ jobs:
           PY
 
       # The mod page's Changelogs tab gets this version's CHANGELOG.md bullets in full,
-      # one entry per line. The Nexus endpoint only appends, so re-running a tag adds the
-      # same lines a second time. No section for this version -> nothing is posted.
+      # one entry per line - up to a "### Notes from development" heading, which holds
+      # the engineering history and stays on GitHub. The Nexus endpoint only appends, so
+      # re-running a tag adds the same lines a second time. No section for this
+      # version -> nothing is posted.
       - name: Build Nexus changelog entries
         id: clentries
         env:
@@ -245,7 +242,7 @@ jobs:
 
           version = os.environ["VERSION"]
           text = open("CHANGELOG.md", encoding="utf-8").read()
-          m = re.search(r"^## " + re.escape(version) + r"\b.*?$(.*?)(?=^## |\Z)", text, re.M | re.S)
+          m = re.search(r"^## " + re.escape(version) + r"\b.*?$(.*?)(?=^## |^### Notes from development|\Z)", text, re.M | re.S)
           entries = []
           if m:
               # fold continuation lines into their bullet; the whitespace after the marker
@@ -286,11 +283,12 @@ jobs:
             Cluster Seeker: a throwable pod that lands, follows you, and bursts into
             ten autonomous drones when enemies come close. They pick their own targets
             and detonate on contact. Unlocked by the Explosives skill at level 35,
-            or earlier from the Cluster Seeker Schematic.
+            or earlier from the Cluster Seeker Schematic. Plus six throwable turrets
+            (gun, MG, shotgun, sniper, flame, shock), each unlocked by the weapon perk
+            that matches its ammunition or from its schematic.
 
-            Played and verified on game version ${{ env.TESTED_VERSIONS }}. 3.0.0 and
-            3.0.1 load cleanly but were not played on this build, and other 3.x builds
-            are untested. No other mods required. Contains a Harmony DLL, so
+            Built for and played on game version ${{ env.TESTED_VERSIONS }}. No other
+            mods required. Contains a Harmony DLL, so
             EasyAntiCheat must be off. Multiplayer: install on the server AND on every
             client - asset bundles are not sent from server to client.
 

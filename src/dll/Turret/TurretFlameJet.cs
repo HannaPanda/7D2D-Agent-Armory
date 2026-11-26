@@ -39,7 +39,7 @@ using UnityEngine;
 public static class TurretFlameJet
 {
     // Diagnoseausgabe. VOR DEM RELEASE AUF false - eine Zeile pro Turret, kein Dauerlog.
-    private const bool DBG = true;
+    private const bool DBG = false;
 
     // Alles an der entity_class einstellbar, damit eine schief stehende Flamme eine
     // XML-Korrektur ist und kein Rebuild.

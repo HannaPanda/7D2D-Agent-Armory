@@ -20,7 +20,7 @@ assemblies. Using `netstandard2.1` pulls in the NETStandard reference pack, whos
 
 ## Unity
 
-Asset bundles must be built with the engine version the game ships — **2022.3.62f2** for 3.0.1.
+Asset bundles must be built with the engine version the game ships — **2022.3.62f2** for 3.4.
 Author models at true world size, prefab root at scale 1, and never correct an import mistake
 with `SizeScale` (see architecture notes on why values below 1 break collision).
 
@@ -127,10 +127,15 @@ Each module keeps a `DBG` constant. Flip these to `false` before release:
 - `Seeker/Patch_SeekerPhysics.cs`
 - `Seeker/Patch_SeekerRoll.cs`
 - `Shared/Patch_LandingOnlyCharge.cs`
+- `Turret/Patch_TurretFireProbe.cs`
+- `Turret/Patch_TurretShockRotation.cs`
+- `Turret/TurretFlameJet.cs`
+- `Turret/TurretRetire.cs`
 
-⚠ The last two were added late: they had **no flag at all** and kept printing per-entity
-capsule and model-offset lines into every player's log - eleven entities per throw. Grepping
-for `const bool DBG` is not enough to find that; grep for `Debug.Log` and classify each hit.
+⚠ `Patch_SeekerPhysics` and `Patch_SeekerRoll` were added late: they had **no flag at all**
+and kept printing per-entity capsule and model-offset lines into every player's log - eleven
+entities per throw. Grepping for `const bool DBG` is not enough to find that; grep for
+`Debug.Log` and classify each hit.
 
 **`Debug.LogWarning` stays ungated** in those two files, deliberately. A degenerate capsule, a
 rescued drone, a hit hard-lifetime and an unknown entity class are real fault states, and they
@@ -139,6 +144,8 @@ are the only trace a bug report from a stranger will carry. Silence them and a r
 
 The proof the flag took is the build output: a release build reports `CS0162` (unreachable
 code) for every dead `Dbg(...)` call. No `CS0162` means `DBG` is still `true` somewhere.
+`Patch_TurretFireProbe` is the one exception: it tests `if (!DBG || ...) return;`, which the
+compiler does not treat as constant, so it never warns - check that file by eye.
 
 `InitMod` logs the **Harmony patch count**, not just "initialised". `PatchAll` returning
 proves nothing - a patch class that matches no target fails silently, which is exactly how a

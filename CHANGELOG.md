@@ -1,6 +1,26 @@
 # Changelog
 
-## Unreleased
+## 0.10.0 - 2026-11-26
+
+The second module is in: **throwable turrets**.
+
+- **Built for 7 Days to Die V 3.4.**
+- **New: throwable turrets.** Six kinds (Gun, MG, Shotgun, Sniper, Flame and Shock Sentry)
+  across eight craftable boxes. Throw one and an auto-turret builds itself where it lands,
+  fires the ammunition it was built with, and packs itself away once the magazine or its
+  runtime is spent. Each is unlocked by the weapon perk that matches its ammunition, or
+  earlier from its schematic, and that perk's ranks make it hit harder.
+- **Turrets see all the way round** and start out facing the nearest enemy, and a turret keeps
+  its remaining runtime through a save and reload.
+- **The Flame Sentry does solid damage**: it sets zombies on fire and slows them, with one flame
+  that comes out of the muzzle, turns with the barrel and leaves nothing behind.
+- **The Shock Sentry is a crowd-control turret.** It shocks and slows a zombie, moves on to the
+  nearest one that is not shocked yet, and holds fire while everything in range already is.
+- **Thrown charges deploy where they land.** A Cluster Seeker or turret box that grazes a wall,
+  a ledge or a zombie on the way down keeps falling and deploys on the ground, instead of
+  hanging in mid-air where it touched.
+
+### Notes from development
 
 **The shock turret is now a crowd-control turret: it round-robins through the nearest un-shocked
 zombies.** Requested after the play test — "das könnte mehr ein Crowd Control Turret werden, wo der
@@ -182,9 +202,9 @@ the tile you were standing on; only a throw aimed well away from you worked.
   immediately. The collision is the only trigger there is. Adding `FuseStartOnDrop` would be
   the wrong repair — it also arms a charge merely dropped out of the inventory.
 
-Headless on 3.0.0, 3.0.1 and 3.1.0: mod loaded, 8 Harmony patches (up from 7, so the new
-target resolves on all three), 0 ERR / 0 EXC / 0 XML problems. The behaviour itself is not
-covered by that — a headless run throws nothing.
+Headless: mod loaded, 8 Harmony patches (up from 7, so the new target resolves), 0 ERR /
+0 EXC / 0 XML problems. The behaviour itself is not covered by that — a headless run throws
+nothing.
 
 **New module: throwable turrets.** A box you throw like a shaped charge; it deploys an
 auto-turret where it lands. Single use — fixed ammunition, a lifetime, and no picking it back
@@ -242,15 +262,18 @@ perk that matches its ammunition.
   the timed charge this box extends has **no `ExplodeOnHit` and `StickPercent=1`**, so without
   correction the box would have stuck to walls and built its turret in mid-air.
 
-**Play-tested so far:** the Gun Sentry thoroughly — ten thrown over a 2.5 hour session, all ten
+**Play-tested on 3.4**: the Cluster Seeker and all six turret types, thrown and watched in
+play. The longest single session went to the Gun Sentry — ten thrown over 2.5 hours, all ten
 retired cleanly (seven on an empty magazine, three on lifetime), full-circle traverse confirmed,
 fire sound audible. ⚠ *Why* it was silent before was never isolated: it had inherited a valid
 `junkturret_fire` all along, and the explicit per-type sound that fixed it was going in
-regardless. The **flamethrower is confirmed working end to end** after three rounds of fixes —
-damage, flame position, one flame, rotation, sound. The **shock turret has been thrown twice** and
-was rebuilt twice; it is now a different weapon (crowd control by round-robin) and **nothing of that
-rebuild has been seen**. MG, shotgun and sniper have never been thrown at all. Details in
-`docs/architecture/turret.md`.
+regardless. Details in `docs/architecture/turret.md`.
+
+**Release build.** Rebuilt against 3.4. The diagnostic logging in the turret classes
+(`[AgentArmoryFireProbe]`, `[AgentArmoryShock]`, `[AgentArmoryFlame]` and the retire line) is
+compiled out for release (`DBG = false`), the same as the Seeker's in 0.9.0; the `LogWarning`
+fault traces stay. Headless on 3.4.0 (b10): mod loaded, 9 Harmony patches, 0 ERR / 0 EXC /
+0 XML problems.
 
 ## 0.9.0 - 2026-08-01 (Beta)
 

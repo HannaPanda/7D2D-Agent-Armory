@@ -49,7 +49,7 @@ using UnityEngine;
 public static class Patch_TurretShockRotation
 {
     // Diagnoseausgabe. VOR DEM RELEASE AUF false.
-    private const bool DBG = true;
+    private const bool DBG = false;
 
     // An der entity_class, damit die Mechanik nicht am Turretnamen haengt.
     private const string PropRotate = "AgentShockRotateTargets";

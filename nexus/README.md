@@ -1,15 +1,18 @@
 # Nexus mod page assets
 
-`description.bbcode` is the source of truth for the Nexus Mods description. Edit it here, then
-paste it into the mod page's description field. The rich-text editor converts the BBCode
-correctly on paste, so no mode switch is needed.
+`description.bbcode` is the source of truth for the Nexus Mods description. Edit it here; the
+release workflow sends it to the mod page on every tag (v3 API, once `NEXUSMODS_FILE_ID` and
+`NEXUSMODS_API_KEY` are set). Until then, paste it into the mod page's description field - the
+rich-text editor converts the BBCode correctly on paste, so no mode switch is needed.
 
-## Before pasting - check this against reality
+Its **Changelog section is hand-maintained** and is part of every release: player-visible
+changes only, the latest one or two versions, the full history linked on GitHub.
 
-**The "Tested on" bullet** claims all three builds were launched *and played*, with models,
-icon, sound and drone behaviour looked at. Headless runs do not earn that sentence -
-`tb report --mod agentarmory --json` has to show the GUI stage verified for the mod version
-being released. If only some builds were played, name only those.
+## Before releasing - check this against reality
+
+**The "Tested on" bullet** claims the build was launched *and played*, with models, icon, sound,
+drone and turret behaviour looked at. It names the current game version only - the mod
+supports nothing older - and it has to match `TESTED_VERSIONS` in the release workflow.
 
 The Credits and AI-disclosure sections are settled (drone from CGTrader under a purchased
 Royalty Free License, sound from ElevenLabs, code/translations with Claude). Keep them in sync
@@ -64,8 +67,8 @@ Rules for what goes in this folder:
 1. **Still upload the screenshots to the mod page's Images tab.** The gallery, the thumbnail
    and the search preview all come from there, not from the description. Hotlinking only saves
    the copy-the-CDN-URL step for images embedded *in the body*.
-2. **Push before pasting the description.** The URLs resolve only once `nexus/images/` is on
-   GitHub.
+2. **Push the images before the description goes out.** The URLs resolve only once
+   `nexus/images/` is on GitHub.
 
 Nexus renders `raw.githubusercontent.com` images - confirmed on the 7 Dashes to Die and Adamant
 pages, which use the same setup.

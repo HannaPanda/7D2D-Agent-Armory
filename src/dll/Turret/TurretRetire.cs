@@ -6,7 +6,7 @@ public static class TurretRetire
     // Diagnoseausgabe waehrend der Einfuehrung. VOR DEM RELEASE AUF false - der Mod schreibt
     // auf einem sauberen Lauf sonst mehr als die zwei Zeilen aus ModEntry, und genau die
     // nutzt die Testbench als Beweis.
-    private const bool DBG = true;
+    private const bool DBG = false;
 
     public static void Retire(EntityTurret turret, string reason)
     {

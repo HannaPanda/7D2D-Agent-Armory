@@ -1,4 +1,4 @@
-# Agent Armory - 7 Days to Die (V3.0 / V3.1)
+# Agent Armory - 7 Days to Die (V3.4)
 
 Deployable agent gadgets, inspired by the skill loadouts of tactical looter shooters.
 Harmony DLL + XML, one mod folder.
@@ -37,15 +37,21 @@ A box the size of a shaped charge. Throw it, and an auto-turret builds itself wh
   | Shotgun Sentry | 12 gauge | Boomstick | 24 | 90 s |
   | Sniper Sentry | 7.62 AP | Dead Eye | 20 | 120 s |
   | Flame Sentry | fuel | Turrets | 300 | 60 s |
-  | Shock Sentry | cells | Electrocutioner | 60 | 75 s |
+  | Shock Sentry | cells | Electrocutioner | 240 | 75 s |
 
 - **Your perk ranks apply to your turret.** The thrower is passed into the damage lookup, so a
   Machine Gunner build makes its own MG Sentry hit harder.
 - **One-way trip.** The ammunition is built in, the runtime is fixed, and the turret cannot be
   picked back up. When the magazine or the clock runs out, it packs itself away - no corpse, no
   loot box.
-- **The flamethrower and the shock turret trade damage for control**: burning and slowing in
-  one case, stunning and slowing in the other.
+- **Every turret sees all the way round** and starts out facing the nearest enemy. Its
+  remaining runtime survives a save and reload.
+- **The Flame Sentry is a chokepoint weapon**: 6 m of reach, solid damage, and it sets
+  zombies on fire and slows them. Put it in front of the door a horde has to come through.
+- **The Shock Sentry is crowd control.** It shocks and slows one zombie, moves on to the
+  nearest one that is not shocked yet, and holds fire while everything in range already is.
+- **It deploys where it lands.** A box that grazes a wall, a ledge or a zombie on the way down
+  keeps falling and builds the turret on the ground.
 - **Unlocked by the matching weapon perk** (rank 2-4 depending on the turret), or earlier from
   the matching **schematic**, which drops from loot and appears at traders. One schematic
   covers both ammunition variants of its turret.
@@ -55,19 +61,16 @@ Planned modules: chem launcher, disposable gun drone, hive.
 
 ## Status
 
-**0.9.0 - beta.** The Seeker plays the way it is meant to; the beta label is about what is
-around it.
+**0.10.0 - beta.** The Seeker and all six turrets play the way they are meant to; the beta
+label is about balance, which is still a first draft.
 
-**Played and verified on V 3.1.0** - hand model, icon, sound, pod landing and following, ten
-drones hunting and detonating, the skill entry, all looked at rather than assumed.
-**V 3.0.0 and V 3.0.1** pass stage 1 (mod loads, 4 Harmony patches applied, 0 errors /
-exceptions / XML problems) but have no GUI run against *this* build. 3.0.1 was played for days
-during development - on a pre-0.9.0 build, inside a large modlist - and neither of those makes
-it a verification of what ships here.
+**Tested on V 3.4.0 (b10)** - headless (mod loads, 9 Harmony patches applied, 0 errors /
+exceptions / XML problems) and played: hand model, icon, sound, pod landing and following, ten
+drones hunting and detonating, the skill entry, and every turret type thrown, firing and
+packing itself away, all looked at rather than assumed. The DLL is built against 3.4.
 
-Other 3.x builds are untested rather than unsupported. The mod is a Harmony DLL, so the tested
-list has to be re-established for **every** release; the procedure is under
-[Testing](#testing) below.
+The mod is a Harmony DLL, so the tested version has to be re-established for **every**
+release; the procedure is under [Testing](#testing) below.
 
 ### The skill-screen entry, and why a sixth one is invisible
 
@@ -113,7 +116,7 @@ Two traps that cost a round each:
    `7 Days To Die/Mods/` folder.
 2. Launch with EAC disabled.
 
-Adding it mid-save is fine. Removing it is safe as long as no pod or drone is alive in the
+Adding it mid-save is fine. Removing it is safe as long as no pod, drone or turret is alive in the
 world at the time - those are custom entity classes, and a save that still contains one cannot
 resolve it without the mod.
 
@@ -129,6 +132,8 @@ AgentArmory/            the deployable mod folder (this is what goes into Mods/)
 src/
   dll/                  C# sources, one folder per module
     Seeker/             Cluster Seeker: AI tasks, spawner, physics patches
+    Turret/             throwable turrets: deploy, runtime, flame jet, shock targeting
+    Shared/             code both modules use, e.g. the landing-only charge patch
   unity/                Unity source assets (prefabs, materials, sounds)
 test/                   test-bench configuration (see Testing)
 tools/                  helper scripts, e.g. bundle_peek.py
@@ -149,8 +154,8 @@ the Unity project, via *Agent Armory ▸ Handmodell + Bundle bauen* - one menu i
 configures the prefab and the audio clip, builds `seekerdrone.unity3d` and copies it into
 `AgentArmory/Resources/`.
 
-Before tagging a release, flip `DBG` to `false` in `Seeker/EAISeekerDetonate.cs`,
-`Seeker/EAISeekerPod.cs` and `Seeker/MinEventActionSeekerExplode.cs`. A release build then
+Before tagging a release, flip every `DBG` constant to `false` - the list of files is in
+[docs/conventions/modding.md](docs/conventions/modding.md#debug-logging). A release build then
 shows `CS0162` (unreachable code) for the dead `Dbg(...)` calls - that warning is the proof
 the flag took.
 
@@ -161,7 +166,7 @@ through `test/testbench.mod.json`:
 
 ```bash
 tb run --mod agentarmory --profile matrix --json   # headless, every configured version
-tb run --mod agentarmory --version 3.1.0 --stage gui --visual defer --json
+tb run --mod agentarmory --version 3.4.0 --stage gui --visual defer --json
 tb report --mod agentarmory --json                 # matrix + the TESTED_VERSIONS line
 ```
 
@@ -173,8 +178,11 @@ drone behaviour need the GUI stage and a human look.
 ## Release
 
 Push a `v*` tag; `.github/workflows/release.yml` validates the XML, checks the installable
-structure, zips `AgentArmory/` and publishes the GitHub Release. The Nexus upload step runs
-only once the repository variable `NEXUSMODS_FILE_ID` is set.
+structure, zips `AgentArmory/` and publishes the GitHub Release. The Nexus steps run only once
+the repository variable `NEXUSMODS_FILE_ID` (and the secret `NEXUSMODS_API_KEY`) is set: they
+upload the zip, append the version's summary bullets from `CHANGELOG.md` (everything above
+`### Notes from development`) to the Changelogs tab, and replace the mod page description with
+`nexus/description.bbcode`.
 
 `TESTED_VERSIONS` in that workflow is the single source for the version claim in the release
 body and the Nexus file description. Keep it in sync with this README and
@@ -187,7 +195,8 @@ The DLL name is part of the public contract: the XML refers to custom classes as
 `buffs.xml` in the same commit, otherwise the classes silently fail to resolve.
 
 See [docs/architecture/seeker.md](docs/architecture/seeker.md) for how the Cluster Seeker works
-and which engine behaviours it has to work around.
+and which engine behaviours it has to work around, and
+[docs/architecture/turret.md](docs/architecture/turret.md) for the turrets.
 
 ## License
 

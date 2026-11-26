@@ -28,11 +28,7 @@
     {
       "name": "matrix",
       "variant": "Default",
-      "versions": [
-        "3.0.0",
-        "3.0.1",
-        "3.1.0"
-      ],
+      "versions": ["3.4.0"],
       "stages": [
         "headless"
       ],
@@ -41,9 +37,7 @@
     {
       "name": "gui",
       "variant": "Default",
-      "versions": [
-        "3.1.0"
-      ],
+      "versions": ["3.4.0"],
       "stages": [
         "gui"
       ],

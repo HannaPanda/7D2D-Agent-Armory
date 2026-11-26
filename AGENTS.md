@@ -1,10 +1,10 @@
-# AGENTS.md - Agent Armory (7 Days to Die 3.0.1 mod)
+# AGENTS.md - Agent Armory (7 Days to Die 3.4 mod)
 
 Onboarding for AI agents working on this repo. Read this first.
 
 ## What this project is
 
-A modular set of deployable agent gadgets for **7 Days to Die 3.0.1**, inspired by the skill
+A modular set of deployable agent gadgets for **7 Days to Die 3.4**, inspired by the skill
 loadouts of tactical looter shooters. Original names, art and numbers — the inspiration is the
 *concept* of a gadget belt, not the source material.
 
@@ -15,11 +15,10 @@ Modules:
   the player. *Playable.*
 - **Throwable turrets** — a box you throw that deploys an auto-turret where it lands. Six
   variants (gun, machine gun, shotgun, sniper, flamethrower, shock), eight craftable boxes.
-  Single use: fixed ammunition, a lifetime, no picking it back up. *The gun and flamethrower
-  variants are play-tested end to end; the flamethrower took three rounds to get there. The shock
-  turret was rebuilt twice and is now a crowd-control turret that round-robins through the nearest
-  un-shocked zombies — none of that rebuild has been seen in play. MG, shotgun and sniper have never
-  been thrown. See `docs/architecture/turret.md`.*
+  Single use: fixed ammunition, a lifetime, no picking it back up. *Playable; all six variants
+  are play-tested. The flamethrower took three rounds to get there, and the shock turret was
+  rebuilt twice into a crowd-control turret that round-robins through the nearest un-shocked
+  zombies. See `docs/architecture/turret.md`.*
 
 Planned: chem launcher, disposable gun drone, hive. The chem launcher and the hive are meant to
 cover healing, which is why there is deliberately **no support turret**.
@@ -29,7 +28,7 @@ cover healing, which is why there is deliberately **no support turret**.
 | Path | What |
 |---|---|
 | `AgentArmory/` | the deployable 7DTD mod (ModInfo.xml, Config/, Resources/, AgentArmory.dll) |
-| `src/dll/` | C# Harmony source + `.csproj`; **one folder per module** (`Seeker/`), shared code in `Shared/` |
+| `src/dll/` | C# Harmony source + `.csproj`; **one folder per module** (`Seeker/`, `Turret/`), shared code in `Shared/` |
 | `src/unity/` | Unity source assets (prefabs, materials) — bundles are built in Unity 2022.3.62f2 |
 | `docs/` | architecture notes and conventions |
 
@@ -49,7 +48,7 @@ cover healing, which is why there is deliberately **no support turret**.
   an assumption was made instead of dumping the IL — including unit assumptions, which are as
   worth verifying as signatures.
 - The repo mirrors a live MO2 deployment at
-  `C:\Modlists\Smorgasbord\mods\AgentArmory\AgentArmory\` — keep them in sync.
+  `C:\Modlists\Smorgasbord-3.4\mods\[NoDelete]AgentArmory\AgentArmory\` — keep them in sync.
 - 7DTD locks the DLL while running. Close the game before deploying.
 
 ## Traps that already cost time

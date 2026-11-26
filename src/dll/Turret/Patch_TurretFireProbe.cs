@@ -26,7 +26,7 @@ using UnityEngine;
 [HarmonyPatch(typeof(MiniTurretFireController), "Fire")]
 public static class Patch_TurretFireProbe
 {
-    private const bool DBG = true;
+    private const bool DBG = false;
 
     // Einmal pro Turret, nicht pro Schuss: bei 500 Schuss/Minute waere alles andere eine
     // Logflut, in der die Antwort untergeht.
